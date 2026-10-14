@@ -5,6 +5,7 @@ import errno
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import tempfile
 from types import SimpleNamespace
@@ -42,7 +43,7 @@ class Regressions(unittest.TestCase):
 
     def legacy(self):
         t=copy.deepcopy(self.t)
-        for k in ('form_id','ac_defaults_version','company_name','company_address','company_contact','random_print_enabled','random_print_x_mm','random_print_y_mm'):
+        for k in ('form_id','ac_defaults_version','ac_footer_revision','ac_footer_source','ac_previous_footer','company_name','company_address','company_contact','random_print_enabled','random_print_x_mm','random_print_y_mm'):
             t.pop(k,None)
         t['fixed_texts']=[i for i in t['fixed_texts'] if not i.get('id','').startswith('company_')]
         return t
@@ -133,8 +134,9 @@ class Regressions(unittest.TestCase):
     def test_initial_address_and_greeting_are_rendered(self):
         p=self.path/'blank.pdf';core.render_pdf(p,[core.blank(self.t)],self.t)
         with pymupdf.open(p) as doc:
-            text=doc[0].get_text();self.assertIn(ADDRESS,text)
-            self.assertIn('エーシートヨアケ',text);self.assertIn('毎度 ありがとうございます',text)
+            text=doc[0].get_text();compact=re.sub(r'\s+','',text)
+            self.assertIn(ADDRESS,compact)
+            self.assertIn('エーシートヨアケ',compact);self.assertIn('毎度 ありがとうございます',text)
             self.assertNotIn('ありがとうございます。',text)
 
     def test_unique_preview_paths_and_cleanup_on_failure_or_cancel(self):

@@ -8,6 +8,7 @@ __pycache__/
 preview/
 reference/
 private/
+private-assets/
 data/
 test-results/
 .DS_Store

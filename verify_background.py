@@ -9,6 +9,7 @@ import sqlite3
 import tempfile
 import unittest
 import tkinter as tk
+from unittest.mock import patch
 from PIL import Image,ImageDraw
 import pymupdf
 import core
@@ -187,6 +188,41 @@ class BackgroundChecks(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'未解決の誤字'):load_background(t)
         t['background']['unresolved_text_errors']=[]
         self.assertIsNotNone(load_background(t))
+
+    def test_recognized_image_selection_applies_profile_and_original_typos_stay_blocked(self):
+        from tomei_preset import apply_preset,recognize
+        source=self.path/'fixture.png';Image.new('RGB',(1070,1470),'white').save(source)
+        digest=hashlib.sha256(source.read_bytes()).hexdigest();before=source.read_bytes()
+        with patch('tomei_preset.CORRECTED_SHA256',digest):
+            root=tk.Tk();root.withdraw();app=App(root,self.path/'preset-gui')
+            try:
+                app.background_settings.select_source(source);app.save_settings()
+                self.assertEqual(app.template['layout_profile'],'generated-20261014')
+                self.assertEqual(app.template['background']['status'],'draft')
+                self.assertEqual(app.template['coordinate_width'],1018)
+                app.background_settings.reviewed.set(True);app.save_settings();app.preview_current()
+                self.assertEqual(app.template['background']['status'],'ready')
+                self.assertEqual(app.template['background']['kind'],'corrected_blue')
+            finally:app.store.close();root.destroy()
+        with patch('tomei_preset.ORIGINAL_SHA256',digest):
+            t=apply_preset(self.t,source,reviewed=True,errors=[])
+            with self.assertRaisesRegex(ValueError,'未解決の誤字'):load_background(t)
+        self.assertEqual(source.read_bytes(),before)
+        self.assertIsNone(recognize(source))
+
+    def test_private_bundle_initializes_new_store_but_preserves_existing_settings(self):
+        source=self.path/'fixture.png';Image.new('RGB',(1070,1470),'white').save(source)
+        digest=hashlib.sha256(source.read_bytes()).hexdigest()
+        old=copy.deepcopy(self.t);next(f for f in old['fields'] if f['id']=='recipient')['default']='KEEP-CUSTOM'
+        store=core.Store(self.path/'existing',default_template=old);store.set_template(old);store.close()
+        with patch('tomei_preset.CORRECTED_SHA256',digest),patch('tomei_preset.bundled_source',return_value=source):
+            for name in ('new','existing'):
+                root=tk.Tk();root.withdraw();app=App(root,self.path/name)
+                try:
+                    if name=='new':
+                        self.assertEqual(app.template['background']['status'],'ready');app.preview_current()
+                    else:self.assertEqual(app.template,old)
+                finally:app.store.close();root.destroy()
 
     def test_bitmap_and_notice_repeat_for_each_imposition_slot(self):
         t=self.ready();t['page_layout'].update(paper='A4',rows=2,columns=2,margin_x_mm=5,margin_y_mm=5,gap_x_mm=3,gap_y_mm=4,scale='fit')

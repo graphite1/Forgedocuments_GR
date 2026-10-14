@@ -950,27 +950,28 @@
       "value_key": "company_name",
       "text": "",
       "box": [
-        62,
-        1100,
-        900,
+        210,
+        1138,
+        585,
         60
       ],
-      "font": 40,
-      "align": "left",
+      "font": 44,
+      "align": "justify",
       "print": true
     },
     {
       "id": "company_address",
-      "value_key": "company_address",
-      "text": "",
+      "text": "愛知県豊明市栄町神田182",
       "box": [
-        62,
-        1165,
-        900,
-        46
+        210,
+        1104,
+        580,
+        34
       ],
-      "font": 28,
-      "align": "left",
+      "font": 24,
+      "min_font": 24,
+      "align": "justify",
+      "wrap": false,
       "print": true
     },
     {
@@ -1175,5 +1176,42 @@
   "random_print_enabled": false,
   "random_print_x_mm": 0.3,
   "random_print_y_mm": 0.3,
-  "ac_defaults_version": 1
+  "ac_defaults_version": 1,
+  "ac_previous_footer": [
+    {
+      "id": "company_address",
+      "value_key": "company_address",
+      "text": "",
+      "box": [
+        62,
+        1165,
+        900,
+        46
+      ],
+      "font": 28,
+      "align": "left",
+      "print": true
+    },
+    {
+      "id": "company_name",
+      "value_key": "company_name",
+      "text": "",
+      "box": [
+        62,
+        1100,
+        900,
+        60
+      ],
+      "font": 40,
+      "align": "left",
+      "print": true
+    }
+  ],
+  "ac_footer_revision": 1,
+  "ac_footer_source": {
+    "library_file_id": "libfile_2212a3b6aaa481919817fbfd71265d13",
+    "local_original_pixels_checked": false,
+    "overlay_verified": false,
+    "alignment_status": "candidate_from_original_image_review; local PDF transfer pending"
+  }
 }

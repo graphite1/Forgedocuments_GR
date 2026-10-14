@@ -84,6 +84,8 @@ def validate_policy(t):
 
 class App(DefinitionScreen):
     def __init__(self,root,directory):
-        t=load_template(DEFINITION);validate_policy(t)
+        from tomei_preset import with_bundled_preset
+        base=load_template(DEFINITION)
+        t=with_bundled_preset(base);validate_policy(t)
         from tomei_defaults import migrate_background
-        super().__init__(root,directory,t,validate_policy,lambda value:migrate_background(value,t))
+        super().__init__(root,directory,t,validate_policy,lambda value:migrate_background(value,base))

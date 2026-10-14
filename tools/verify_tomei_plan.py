@@ -19,7 +19,7 @@ from background_assets import load_background
 from tomei_screen import App, validate_policy
 
 
-def verify(settings, values, output):
+def verify(settings, values, output, source_background=None):
     output.mkdir(parents=True, exist_ok=True)
     t=core.load_template(settings);validate_policy(t)
     data=json.loads(values.read_text(encoding='utf-8'))
@@ -61,9 +61,18 @@ def verify(settings, values, output):
             try:
                 app.set_values(data);app.save()
                 record=copy.deepcopy(app.current);history=app.store.history(record['id'])
-                with patch('definition_screen.filedialog.askopenfilename',return_value=str(settings.resolve())):
-                    app.import_template()
-                app.save_settings()
+                if source_background:
+                    app.background_settings.select_source(source_background)
+                    app.save_settings()
+                    assert app.template['background']['status']=='draft'
+                    assert app.template['layout_profile']=='generated-20261014'
+                    app.background_settings.reviewed.set(True);app.save_settings()
+                    assert app.template['background']['status']=='ready'
+                    evidence['gui_source_selection_auto_profile']=True
+                else:
+                    with patch('definition_screen.filedialog.askopenfilename',return_value=str(settings.resolve())):
+                        app.import_template()
+                    app.save_settings()
                 for i in range(12):
                     current=copy.deepcopy(data);current['vehicle_number']=f'{i:04}'
                     app.set_values(current);app.preview_current()
@@ -75,7 +84,7 @@ def verify(settings, values, output):
                 assert app.store.history(record['id'])==history
                 assert not list((Path(temp)/'preview').glob('*.pdf'))
                 evidence.update(preview_saved_pixel_difference=0,records_and_history_unchanged=True,
-                                gui_settings_import=True,temporary_preview_files_remaining=0)
+                                gui_settings_import=not bool(source_background),temporary_preview_files_remaining=0)
             finally:
                 app.store.close();root.destroy()
     core.atomic_json(output/'verification.json',evidence)
@@ -86,5 +95,6 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('settings',type=Path);parser.add_argument('values',type=Path)
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--source-background',type=Path)
     args=parser.parse_args()
-    print(json.dumps(verify(args.settings,args.values,args.output),ensure_ascii=False,indent=2))
+    print(json.dumps(verify(args.settings,args.values,args.output,args.source_background),ensure_ascii=False,indent=2))

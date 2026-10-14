@@ -22,7 +22,7 @@ def prepare_key():
     if cfg['key_id']!=key_id or cfg['public_key']!=public:raise RuntimeError('既存署名鍵とアプリの公開鍵が一致しません。公開鍵は変更しません')
     return key,cfg
 
-def build(output,unsigned=False):
+def build(output,unsigned=False,private_background=None):
     if sys.platform!='win32':raise RuntimeError('Windows EXEはWindows環境でビルド・診断してください。Linux製の実行ファイルは配布しません')
     if unsigned:key=None;cfg=json.loads((ROOT/'update_config.json').read_text(encoding='utf-8'))
     else:key,cfg=prepare_key()
@@ -30,6 +30,12 @@ def build(output,unsigned=False):
     v=json.loads((ROOT/'version.json').read_text(encoding='utf-8'))
     dest=output/f"Forgedocuments_GR-{v['version']}-windows-x64";dest.mkdir(exist_ok=False)
     args=[sys.executable,'-m','PyInstaller','--noconfirm','--clean','--onefile','--windowed','--name','Forgedocuments GR','--distpath',str(dest),'--workpath',str(output/'build'),'--specpath',str(output/'spec')]
+    if private_background:
+        from tomei_preset import recognize
+        source=Path(private_background).resolve()
+        if recognize(source)!='corrected':raise ValueError('同梱は確認済み修正背景だけに対応します')
+        if source.name!='tomei-corrected-background.png':raise ValueError('私有背景の同梱名はtomei-corrected-background.pngです')
+        args+=['--add-data',str(source)+':private-assets']
     for name in ['template.json','forms.json','version.json','update_config.json']:args+=['--add-data',str(ROOT/name)+':.']
     from form_registry import catalog
     for row in catalog():
@@ -65,6 +71,7 @@ def build(output,unsigned=False):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--prepare-key',action='store_true',help='既存鍵と公開鍵の一致を確認（鍵の新規作成はしない）');parser.add_argument('--unsigned',action='store_true',help='Windowsビルドのみ。署名鍵を扱わず、公開不可の未署名候補を作成');parser.add_argument('--output',default=str(ROOT.parent/'release'))
+    parser.add_argument('--private-background',type=Path,help='本人用の非公開ビルドだけに修正背景を同梱。公開資産へアップロードしない')
     a=parser.parse_args()
     if a.prepare_key:prepare_key();print('Existing signing key matches the unchanged public key')
-    else:build(a.output,unsigned=a.unsigned)
+    else:build(a.output,unsigned=a.unsigned,private_background=a.private_background)

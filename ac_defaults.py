@@ -1,6 +1,7 @@
 """AC-only defaults and additive migration, selected by the stable form ID."""
 from copy import deepcopy
 import re
+from ac_footer import migrate_footer
 
 FORM_ID = 'ac_toyoake'
 ADDRESS = '愛知県豊明市栄町神田182'
@@ -12,8 +13,8 @@ def empty(value):
     return value is None or not str(value).strip()
 
 SLOTS = {
-    'company_name': ([62, 1100, 900, 60], 40),
-    'company_address': ([62, 1165, 900, 46], 28),
+    'company_name': ([210, 1138, 585, 60], 44),
+    'company_address': ([210, 1104, 580, 34], 24),
     'company_contact': ([62, 1220, 900, 46], 26),
 }
 
@@ -57,7 +58,7 @@ def migrate_template(template, form_id):
                     fixed['text'] = t[key]
             # Contradictory legacy scalar/fixed-text settings are ambiguous.
             # Keep both settings and the actually printed literal unchanged.
-            if fixed.get('value_key')==key or empty(old) or str(t[key])==str(old):
+            if (fixed.get('value_key')==key or empty(old) or (first and str(t[key])==str(old))) and not (key=='company_address' and t.get('ac_footer_revision')):
                 fixed.setdefault('value_key',key)
         else:
             t['fixed_texts'].append({'id': key, 'value_key': key, 'text': '', 'box': box, 'font': size, 'align': 'left', 'print': True})
@@ -76,4 +77,4 @@ def migrate_template(template, form_id):
             if item.get('text') == '毎度 ありがとうございます。':
                 item['text'] = '毎度 ありがとうございます'
     t['ac_defaults_version'] = VERSION
-    return t
+    return migrate_footer(t)

@@ -7,6 +7,7 @@ from core import *
 from pdf_view import PDFView, preview_window
 from preview_files import generated_pdf
 from ac_defaults import FORM_ID, migrate_template
+from ac_footer import validate_fixed_footer
 from settings_widgets import LayoutSettings, FieldDefaultsSettings
 from record_batches import summary
 
@@ -14,6 +15,7 @@ class App:
     def __init__(self,root,directory):
         self.root=root; self.store=Store(directory,default_template=load_template(),form_id=FORM_ID); self.template=self.store.template()
         migrated=migrate_template(self.template,FORM_ID)
+        validate_fixed_footer(migrated)
         if migrated!=self.template:self.store.set_template(migrated)
         self.template=migrated
         self.current=None;self.loaded_values=None;self.suspend=False;self.changed=False;self.widgets={};self.vars={}
@@ -300,7 +302,10 @@ class App:
         for row,(key,label) in enumerate([('random_print_x_mm','横のずれ幅 ±mm（0〜2）'),('random_print_y_mm','縦のずれ幅 ±mm（0〜2）'),('company_name','社名'),('company_address','住所'),('company_contact','連絡先')],7):
             ttk.Label(top,text=label).grid(row=row,column=0,sticky='w',pady=3)
             v=tk.StringVar(value=str(self.template.get(key,'')));self.setting_vars[key]=v
-            ttk.Entry(top,textvariable=v,width=55).grid(row=row,column=1,sticky='ew',pady=3)
+            if key=='company_address':
+                # Company address is a form element, never a record entry.
+                ttk.Label(top,textvariable=v,width=55).grid(row=row,column=1,sticky='w',pady=3)
+            else:ttk.Entry(top,textvariable=v,width=55).grid(row=row,column=1,sticky='ew',pady=3)
         ttk.Label(top,text='同じ入力はプレビューと保存で同じ位置になります。枠端ではずれ幅を抑えます。\n実寸はスキャン換算の暫定値。紙原本の実測値が分かれば修正してください。',wraplength=900).grid(row=12,column=0,columnspan=2,sticky='w',pady=8)
         self.layout_settings=LayoutSettings(body,self.template);self.layout_settings.pack(fill='x',padx=12,pady=6)
         self.field_settings=FieldDefaultsSettings(body,self.template);self.field_settings.pack(fill='x',padx=12,pady=6)
@@ -313,13 +318,16 @@ class App:
         if not self.may_leave():return
         t=json.loads(self.json_edit.get('1.0','end'))
         if [(f['id'],f['type']) for f in t['fields']]!=[(f['id'],f['type']) for f in self.template['fields']]:raise ValueError('画面と対応しない項目ID・型の変更です。項目定義の変更はコード側にも反映してください')
-        for key,v in self.setting_vars.items():t[key]=v.get() if key=='font_path' or key.startswith('company_') else float(v.get())
+        for key,v in self.setting_vars.items():
+            if key=='company_address':continue
+            t[key]=v.get() if key=='font_path' or key.startswith('company_') else float(v.get())
         self.layout_settings.apply(t);self.field_settings.apply(t)
-        t['page_mode']=self.mode.get();t['input_print_style']=self.ink_style.get();t['random_print_enabled']=self.random_print.get();validate_template(t)
+        t['page_mode']=self.mode.get();t['input_print_style']=self.ink_style.get();t['random_print_enabled']=self.random_print.get();validate_fixed_footer(t);validate_template(t)
         # Test rendering before saving malformed geometry/font settings.
         with generated_pdf(self.store.directory/'preview','settings') as pdf:render_pdf(pdf,[blank(t)],t,validate_records=False)
         data=self.values()
         self.store.set_template(t);self.template=t
+        self.setting_vars['company_address'].set(t.get('company_address',''))
         for widget in self.entrytab.winfo_children():widget.destroy()
         self.vars={};self.widgets={};self.build_entry();self.set_values(data)
         labels={f['id']:f['label'] for f in t['fields']}
@@ -329,7 +337,7 @@ class App:
     def import_template(self):
         path=filedialog.askopenfilename(filetypes=[('JSON','*.json')],parent=self.root)
         if not path:return
-        t=migrate_template(load_template(path),FORM_ID);validate_template(t)
+        t=migrate_template(load_template(path),FORM_ID);validate_fixed_footer(t);validate_template(t)
         self.json_edit.delete('1.0','end');self.json_edit.insert('1.0',json.dumps(t,ensure_ascii=False,indent=2))
         for k,v in self.setting_vars.items():v.set(str(t.get(k,'')))
         self.mode.set(t['page_mode']);self.ink_style.set(t.get('input_print_style','impact'));self.random_print.set(t.get('random_print_enabled',False));self.status.set('設定を読み込みました。「適用・保存」で確定します')

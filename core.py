@@ -473,6 +473,9 @@ def render_pdf(path,records,t,validate_records=True):
                         if is_input and t.get('input_print_style','smooth')!='plain':
                             c.setStrokeColorRGB(*color);c.setLineWidth(float(t.get('input_stroke',.5)))
                             obj=c.beginText(0,0);obj.setFont(font,size);obj.setTextRenderMode(2);obj.textOut(s);c.drawText(obj)
+                        elif align=='justify' and len(s)>1:
+                            obj=c.beginText(0,0);obj.setFont(font,size)
+                            obj.setCharSpace((w-width)/(len(s)-1));obj.textOut(s);c.drawText(obj)
                         else:c.drawString(0,0,s)
                     c.restoreState()
             for item in t['fixed_texts']:
