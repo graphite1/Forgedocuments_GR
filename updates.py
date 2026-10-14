@@ -174,4 +174,4 @@ def route_to_current():
     if not target.is_relative_to(root/'.updates'/'releases'):raise ValueError('更新起動先が不正です')
     if target==Path(sys.executable).resolve():return False
     verify_staged(target.parent)
-    subprocess.Popen([str(target)],env=child_env(root));return True
+    subprocess.Popen([str(target),*sys.argv[1:]],env=child_env(root));return True
