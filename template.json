@@ -1,0 +1,1107 @@
+{
+  "schema_version": 1,
+  "name": "GR 運搬明細書",
+  "width_mm": 117.3,
+  "height_mm": 153,
+  "page_mode": "A4",
+  "original_margin_mm": 0.5,
+  "dimension_status": "スキャンPDFのA4サイズを基準とした暫定換算値。ユーザー了承済。紙原本の実測は未確認。",
+  "coordinate_system": {
+    "width": 1000,
+    "height": 1300,
+    "origin": "外周枠左上",
+    "source": "運搬明細書の外周枠を基準とした暫定座標",
+    "source_page_points": [
+      842.04,
+      595.44
+    ],
+    "source_frame_points": [
+      53,
+      49,
+      385.5,
+      482.7
+    ]
+  },
+  "line_color": [
+    0.29,
+    0.27,
+    0.48
+  ],
+  "input_color": [
+    0.25,
+    0.56,
+    0.76
+  ],
+  "line_width": 1.2,
+  "font_path": "",
+  "fields": [
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "date",
+      "label": "年月日",
+      "type": "date",
+      "group": "基本情報",
+      "parts": [
+        [
+          275,
+          130,
+          90,
+          55
+        ],
+        [
+          475,
+          130,
+          60,
+          55
+        ],
+        [
+          625,
+          130,
+          60,
+          55
+        ]
+      ],
+      "box": [
+        275,
+        130,
+        410,
+        55
+      ],
+      "font": 34,
+      "align": "center",
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "number",
+      "label": "No.",
+      "type": "text",
+      "group": "基本情報",
+      "box": [
+        792,
+        130,
+        190,
+        55
+      ],
+      "font": 30,
+      "align": "center",
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "recipient",
+      "label": "宛先",
+      "type": "text",
+      "group": "基本情報",
+      "box": [
+        145,
+        240,
+        635,
+        60
+      ],
+      "font": 32,
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "site",
+      "label": "現場名",
+      "type": "text",
+      "group": "基本情報",
+      "box": [
+        245,
+        352,
+        735,
+        56
+      ],
+      "font": 30,
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "kind",
+      "label": "種類",
+      "type": "text",
+      "group": "基本情報",
+      "box": [
+        245,
+        424,
+        735,
+        56
+      ],
+      "font": 30,
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "vehicle",
+      "label": "車両番号",
+      "type": "text",
+      "group": "運搬情報",
+      "box": [
+        245,
+        496,
+        240,
+        56
+      ],
+      "font": 30,
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "weather",
+      "label": "天候",
+      "type": "text",
+      "group": "運搬情報",
+      "box": [
+        730,
+        496,
+        250,
+        56
+      ],
+      "font": 28,
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "departure",
+      "label": "出発時間",
+      "type": "time",
+      "group": "運搬情報",
+      "box": [
+        245,
+        568,
+        235,
+        56
+      ],
+      "parts": [
+        [
+          245,
+          568,
+          70,
+          56
+        ],
+        [
+          375,
+          568,
+          70,
+          56
+        ]
+      ],
+      "font": 30,
+      "align": "center",
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "shipping_temperature",
+      "label": "出荷温度",
+      "type": "decimal",
+      "group": "運搬情報",
+      "box": [
+        730,
+        568,
+        175,
+        56
+      ],
+      "font": 30,
+      "align": "right",
+      "unit": "℃",
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "arrival",
+      "label": "到着時間",
+      "type": "time",
+      "group": "運搬情報",
+      "box": [
+        245,
+        640,
+        235,
+        56
+      ],
+      "parts": [
+        [
+          245,
+          640,
+          70,
+          56
+        ],
+        [
+          375,
+          640,
+          70,
+          56
+        ]
+      ],
+      "font": 30,
+      "align": "center",
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "arrival_temperature",
+      "label": "到着温度",
+      "type": "decimal",
+      "group": "運搬情報",
+      "box": [
+        730,
+        640,
+        175,
+        56
+      ],
+      "font": 30,
+      "align": "right",
+      "unit": "℃",
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "quantity",
+      "label": "正味重量",
+      "type": "decimal",
+      "group": "数量",
+      "box": [
+        240,
+        712,
+        280,
+        56
+      ],
+      "font": 30,
+      "align": "right",
+      "unit": "quantity_unit",
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "quantity_unit",
+      "label": "数量単位",
+      "type": "text",
+      "group": "数量",
+      "box": [
+        535,
+        712,
+        58,
+        56
+      ],
+      "font": 28,
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "cumulative_quantity",
+      "label": "累計量",
+      "type": "decimal",
+      "group": "数量",
+      "box": [
+        240,
+        784,
+        280,
+        56
+      ],
+      "font": 30,
+      "align": "right",
+      "unit": "quantity_unit",
+      "calculation": "手入力。選択時のみ、開始量＋選択順の正味重量を加算",
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "cumulative_unit",
+      "label": "累計量単位",
+      "type": "text",
+      "group": "数量",
+      "box": [
+        535,
+        784,
+        58,
+        56
+      ],
+      "font": 28,
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "cumulative_count",
+      "label": "累計台数",
+      "type": "integer",
+      "group": "数量",
+      "box": [
+        240,
+        856,
+        280,
+        56
+      ],
+      "font": 30,
+      "align": "right",
+      "unit": "台",
+      "calculation": "手入力。選択時のみ、開始台数＋選択順の記録件数",
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "shipping_clerk",
+      "label": "出荷係",
+      "type": "text",
+      "group": "確認・備考",
+      "box": [
+        620,
+        794,
+        170,
+        100
+      ],
+      "font": 30,
+      "align": "center",
+      "wrap": true,
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "receipt_text",
+      "label": "受領印（文字）",
+      "type": "text",
+      "group": "確認・備考",
+      "box": [
+        816,
+        794,
+        168,
+        100
+      ],
+      "font": 30,
+      "align": "center",
+      "wrap": true,
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "receipt_image",
+      "label": "受領印（画像）",
+      "type": "image",
+      "group": "確認・備考",
+      "box": [
+        817,
+        787,
+        165,
+        120
+      ],
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "notes",
+      "label": "備考",
+      "type": "multiline",
+      "group": "確認・備考",
+      "box": [
+        233,
+        928,
+        510,
+        90
+      ],
+      "font": 28,
+      "wrap": true,
+      "certainty": "高",
+      "category": "入力"
+    },
+    {
+      "default": "",
+      "required": false,
+      "print": true,
+      "min_font": 14,
+      "decimals": null,
+      "max_length": null,
+      "id": "method",
+      "label": "運搬方法",
+      "type": "choice",
+      "choices": [
+        "",
+        "1 持込",
+        "2 P渡"
+      ],
+      "group": "確認・備考",
+      "box": [
+        810,
+        928,
+        174,
+        92
+      ],
+      "font": 26,
+      "certainty": "高",
+      "category": "入力"
+    }
+  ],
+  "fixed_texts": [
+    {
+      "text": "運　搬　明　細　書",
+      "box": [
+        215,
+        45,
+        580,
+        78
+      ],
+      "font": 52,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "年",
+      "box": [
+        378,
+        141,
+        46,
+        47
+      ],
+      "font": 30,
+      "align": "left",
+      "print": true
+    },
+    {
+      "text": "月",
+      "box": [
+        533,
+        141,
+        46,
+        47
+      ],
+      "font": 30,
+      "align": "left",
+      "print": true
+    },
+    {
+      "text": "日",
+      "box": [
+        690,
+        141,
+        46,
+        47
+      ],
+      "font": 30,
+      "align": "left",
+      "print": true
+    },
+    {
+      "text": "No.",
+      "box": [
+        749,
+        141,
+        58,
+        47
+      ],
+      "font": 28,
+      "align": "left",
+      "print": true
+    },
+    {
+      "text": "殿",
+      "box": [
+        790,
+        239,
+        70,
+        65
+      ],
+      "font": 34,
+      "align": "left",
+      "print": true
+    },
+    {
+      "text": "現 場 名",
+      "box": [
+        20,
+        352,
+        184,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "種　　類",
+      "box": [
+        20,
+        424,
+        184,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "車両番号",
+      "box": [
+        20,
+        496,
+        184,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "出発時間",
+      "box": [
+        20,
+        568,
+        184,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "到着時間",
+      "box": [
+        20,
+        640,
+        184,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "正味重量",
+      "box": [
+        20,
+        712,
+        184,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "累 計 量",
+      "box": [
+        20,
+        784,
+        184,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "累計台数",
+      "box": [
+        20,
+        856,
+        184,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "天　候",
+      "box": [
+        513,
+        496,
+        190,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "出荷温度",
+      "box": [
+        513,
+        568,
+        190,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "到着温度",
+      "box": [
+        513,
+        640,
+        190,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "時",
+      "box": [
+        315,
+        568,
+        55,
+        56
+      ],
+      "font": 28,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "分",
+      "box": [
+        440,
+        568,
+        55,
+        56
+      ],
+      "font": 28,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "℃",
+      "box": [
+        918,
+        568,
+        58,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "時",
+      "box": [
+        315,
+        640,
+        55,
+        56
+      ],
+      "font": 28,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "分",
+      "box": [
+        440,
+        640,
+        55,
+        56
+      ],
+      "font": 28,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "℃",
+      "box": [
+        918,
+        640,
+        58,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "台",
+      "box": [
+        528,
+        856,
+        65,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "出 荷 係",
+      "box": [
+        614,
+        712,
+        182,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "受 領 印",
+      "box": [
+        810,
+        712,
+        180,
+        56
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "備　　考",
+      "box": [
+        20,
+        933,
+        184,
+        76
+      ],
+      "font": 30,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "運\n搬\n方\n法",
+      "box": [
+        766,
+        922,
+        32,
+        104
+      ],
+      "font": 25,
+      "align": "center",
+      "print": true
+    },
+    {
+      "text": "1 持込",
+      "box": [
+        817,
+        924,
+        170,
+        45
+      ],
+      "font": 22,
+      "align": "left",
+      "print": true
+    },
+    {
+      "text": "2 P渡",
+      "box": [
+        817,
+        979,
+        170,
+        44
+      ],
+      "font": 22,
+      "align": "left",
+      "print": true
+    },
+    {
+      "text": "毎度 ありがとうございます",
+      "box": [
+        62,
+        1037,
+        700,
+        52
+      ],
+      "font": 32,
+      "align": "left",
+      "print": true
+    }
+  ],
+  "lines": [
+    {
+      "points": [
+        0,
+        344,
+        1000,
+        344
+      ]
+    },
+    {
+      "points": [
+        0,
+        416,
+        1000,
+        416
+      ]
+    },
+    {
+      "points": [
+        0,
+        488,
+        1000,
+        488
+      ]
+    },
+    {
+      "points": [
+        0,
+        560,
+        1000,
+        560
+      ]
+    },
+    {
+      "points": [
+        0,
+        632,
+        1000,
+        632
+      ]
+    },
+    {
+      "points": [
+        0,
+        704,
+        1000,
+        704
+      ]
+    },
+    {
+      "points": [
+        0,
+        776,
+        608,
+        776
+      ]
+    },
+    {
+      "points": [
+        0,
+        848,
+        608,
+        848
+      ]
+    },
+    {
+      "points": [
+        0,
+        920,
+        1000,
+        920
+      ]
+    },
+    {
+      "points": [
+        0,
+        1028,
+        1000,
+        1028
+      ]
+    },
+    {
+      "points": [
+        218,
+        344,
+        218,
+        1028
+      ]
+    },
+    {
+      "points": [
+        500,
+        488,
+        500,
+        704
+      ]
+    },
+    {
+      "points": [
+        716,
+        488,
+        716,
+        704
+      ]
+    },
+    {
+      "points": [
+        608,
+        704,
+        608,
+        920
+      ]
+    },
+    {
+      "points": [
+        804,
+        704,
+        804,
+        1028
+      ]
+    },
+    {
+      "points": [
+        760,
+        920,
+        760,
+        1028
+      ]
+    },
+    {
+      "points": [
+        804,
+        974,
+        1000,
+        974
+      ],
+      "dash": [
+        10,
+        6
+      ]
+    },
+    {
+      "points": [
+        130,
+        310,
+        790,
+        310
+      ]
+    },
+    {
+      "points": [
+        793,
+        188,
+        966,
+        188
+      ]
+    }
+  ],
+  "calculation": {
+    "enabled_by_default": false,
+    "scope": [
+      "年月日",
+      "宛先",
+      "現場名",
+      "種類",
+      "数量単位"
+    ],
+    "order": "一覧の登録順。選択した行だけ。開始量・開始台数は毎回指定。保存済みの累計欄だけを明示更新する。"
+  },
+  "unconfirmed": [
+    "紙原本の外周枠の実測寸法",
+    "正味重量欄を台で管理する業務上の定義。単位は手動指定し換算しない",
+    "P渡の意味（表記のみ維持）",
+    "固定文の厳密な書体、プリンターの機械的な寸法誤差"
+  ],
+  "input_print_style": "impact",
+  "impact_pitch": 1.15,
+  "impact_dot_ratio": 0.52,
+  "input_stroke": 0.65,
+  "impact_stroke": 1.1
+}
