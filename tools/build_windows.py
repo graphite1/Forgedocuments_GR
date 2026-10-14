@@ -42,6 +42,10 @@ def build(output,unsigned=False):
                 coordinate_path=(ROOT/definition).parent/metadata['coordinate_definition']
                 if not coordinate_path.resolve().is_relative_to((ROOT/definition).parent.resolve()):raise ValueError('座標定義が帳票フォルダーを超えています')
                 args+=['--add-data',str(coordinate_path)+':'+str(Path(definition).parent)]
+            for profile in metadata.get('coordinate_profiles',[]):
+                profile_path=(ROOT/definition).parent/profile
+                if not profile_path.resolve().is_relative_to((ROOT/definition).parent.resolve()):raise ValueError('座標プロファイルが帳票フォルダーを超えています')
+                args+=['--add-data',str(profile_path)+':'+str(Path(definition).parent)]
     args+=['--hidden-import','reportlab.pdfbase._fontdata_enc_winansi','--hidden-import','reportlab.pdfbase._fontdata_enc_macroman',str(ROOT/'app.py')]
     subprocess.run(args,cwd=ROOT,check=True)
     for name in ['template.json','forms.json','version.json','update_config.json']:(dest/name).write_bytes((ROOT/name).read_bytes())

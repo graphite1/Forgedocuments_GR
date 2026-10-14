@@ -47,6 +47,32 @@ class BackgroundChecks(unittest.TestCase):
         image.putdata(source);pixels=list(blue_pixels(image).getdata())
         self.assertEqual(pixels[:2],source[:2]);self.assertEqual(pixels[2:],[(255,255,255)]*3)
 
+    def test_saturated_source_blue_keeps_filled_glyphs_instead_of_only_edges(self):
+        image=Image.new('RGB',(4,1))
+        source=[(0,120,255),(0,70,230),(70,170,180),(220,20,220)]
+        image.putdata(source)
+        self.assertEqual(list(blue_pixels(image).getdata()),source[:3]+[(255,255,255)])
+
+    def test_explicit_image_profile_preserves_legacy_and_protects_real_blank_cells(self):
+        from tomei_profiles import image_profile
+        before=copy.deepcopy(self.t)
+        t=image_profile(self.t);validate_policy(t)
+        self.assertEqual(self.t,before)
+        self.assertEqual(core.blank(t),core.blank(before))
+        self.assertAlmostEqual(t['coordinate_width']/t['coordinate_height'],t['width_mm']/t['height_mm'])
+        t['background']=encode_background(Image.new('RGB',(1018,1417),(0,120,255)),t['width_mm'],t['height_mm'],source_sha256='0'*64,reviewed=True,kind='corrected_blue')
+        loaded=load_background(t)
+        for point in [(750-26,535-33),(960-26,535-33),(400-26,1370-33),(900-26,1370-33)]:
+            self.assertEqual(loaded.getpixel(point),(255,255,255))
+        for point in [(907-26,535-33),(1015-26,535-33),(80-26,1370-33)]:
+            self.assertEqual(loaded.getpixel(point),(0,120,255))
+        bad=copy.deepcopy(t);bad['background']['reviewed']=False
+        with self.assertRaisesRegex(ValueError,'確認'):load_background(bad)
+        bad=copy.deepcopy(t);bad['height_mm']+=1
+        with self.assertRaisesRegex(ValueError,'縦横比'):validate_policy(bad)
+        next(f for f in t['fields'] if f['id']=='vehicle_number')['box']=[300,1310,30,20]
+        with self.assertRaisesRegex(ValueError,'空欄'):validate_policy(t)
+
     def test_crop_removes_annotation_and_does_not_fill_missing_blue_ink(self):
         image=Image.new('RGB',(1303,1805),'white');draw=ImageDraw.Draw(image)
         draw.line((30,30,1212,30),fill=(60,170,180),width=3)

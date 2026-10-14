@@ -2306,5 +2306,8 @@
   "document_purpose": "delivery_plan",
   "plan_revision": 1,
   "entry_value_label": "納入予定値を入力｜日付 YYYY-MM-DD｜時刻 HH:MM｜未記載は空欄",
-  "quantity_summary_title": "選択した納入予定の集計"
+  "quantity_summary_title": "選択した納入予定の集計",
+  "coordinate_profiles": [
+    "tomei_taiheiyo.generated-20261014.coordinates.json"
+  ]
 }

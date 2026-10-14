@@ -67,7 +67,7 @@ class BackgroundSettings(ttk.LabelFrame):
             candidate=extract_background(self.source,[int(v.get()) for v in self.crop],template['width_mm'],template['height_mm'],deskew_degrees=float(self.angle.get()),pdf_page=int(self.page.get()),reviewed=self.reviewed.get())
             if candidate['source_sha256']==self.config.get('source_sha256') and self.config.get('unresolved_text_errors'):
                 candidate['unresolved_text_errors']=copy.deepcopy(self.config['unresolved_text_errors'])
-        elif candidate['status']!='missing' and candidate['kind']=='original_blue':
+        elif candidate['status']!='missing' and candidate['kind'] in ('original_blue','corrected_blue'):
             candidate['reviewed']=self.reviewed.get();candidate['status']='ready' if self.reviewed.get() else 'draft'
         candidate['unresolved_text_errors']=[line.strip() for line in self.errors.get('1.0','end').splitlines() if line.strip()]
         template['background']=candidate

@@ -43,6 +43,12 @@ def validate_blank_regions(t,default):
 
 def validate_policy(t):
     default=load_template(DEFINITION)
+    if t.get('layout_profile'):
+        from tomei_profiles import PROFILE, image_profile
+        if t['layout_profile'] != PROFILE:raise ValueError('未対応の背景座標プロファイルです')
+        default=image_profile(default)
+        if any(t.get(key)!=default[key] for key in ('width_mm','height_mm','content_height_mm','coordinate_width','coordinate_height')):
+            raise ValueError('画像専用プロファイルの寸法・縦横比を保持してください')
     if t.get('form_id')!=FORM_ID:raise ValueError('別帳票の設定です')
     if t.get('render_mode')!='background':raise ValueError('生コンは原票の青印字背景と黒入力を合成してください')
     if t.get('document_purpose')!='delivery_plan':raise ValueError('生コンの出力は納入計画として表示してください')

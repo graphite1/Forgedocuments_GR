@@ -7,7 +7,7 @@ from PIL import Image
 from background_assets import encode_background, MAX_PIXELS
 
 
-def blue_pixels(image, minimum_chroma=10, max_green_blue_difference=100):
+def blue_pixels(image, minimum_chroma=10, max_green_blue_difference=255):
     if image.mode in ('RGBA','LA') or 'transparency' in image.info:
         rgba=image.convert('RGBA');matte=Image.new('RGBA',image.size,'white');matte.alpha_composite(rgba);image=matte.convert('RGB')
     else:image = image.convert('RGB')

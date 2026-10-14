@@ -18,7 +18,7 @@ def validate_background(template, require_ready=False):
     config = template.get('background', missing_background())
     if config.get('schema_version') != 1 or config.get('status') not in ('missing', 'draft', 'ready'):
         raise ValueError('背景画像の定義が不正です')
-    if config.get('kind') not in ('original_blue', 'synthetic_test'):
+    if config.get('kind') not in ('original_blue', 'corrected_blue', 'synthetic_test'):
         raise ValueError('背景画像の由来を指定してください')
     errors=config.get('unresolved_text_errors',[])
     if not isinstance(errors,list) or not all(isinstance(value,str) for value in errors):raise ValueError('背景の未解決事項は文字列のリストで指定してください')
@@ -30,7 +30,7 @@ def validate_background(template, require_ready=False):
         raise ValueError('背景候補は未確認です。住所・選択肢・固定印字と手書き除外を確認してください')
     if config['status']=='ready' and config.get('unresolved_text_errors'):
         raise ValueError('背景の未解決の誤字があります: '+' / '.join(config['unresolved_text_errors']))
-    if config['status']=='ready' and config.get('kind') == 'original_blue' and config.get('reviewed') is not True:
+    if config['status']=='ready' and config.get('kind') in ('original_blue', 'corrected_blue') and config.get('reviewed') is not True:
         raise ValueError('背景の固定印字・手書き除外・欠けを確認してください')
     if config.get('kind') == 'synthetic_test' and config.get('diagnostic_only') is not True:
         raise ValueError('人工背景は合成基盤の診断専用です')
