@@ -1167,7 +1167,7 @@
       "box": [
         33.8123415046492,
         1491.9695688926458,
-        929.839391377853,
+        760.777683854607,
         42.265426880811496
       ],
       "font": 21.978021978021978,
@@ -1842,15 +1842,15 @@
       "id": "shipping_sign_heading"
     },
     {
-      "text": "転記・再出力",
+      "text": "再生成",
       "box": [
-        25.359256128486898,
-        84.53085376162299,
-        464.9196956889265,
-        29.585798816568047
+        828.4023668639053,
+        1496.196111580727,
+        143.7024513947591,
+        33.8123415046492
       ],
       "font": 18.59678782755706,
-      "min_font": 10.14370245139476,
+      "min_font": 15.215553677092139,
       "align": "left",
       "print": true,
       "wrap": true,
@@ -2233,7 +2233,7 @@
     "mix_plan_number",
     "association_name"
   ],
-  "required_notice": "転記・再出力",
+  "required_notice": "再生成",
   "source_confirmation": {
     "basis": "parent-provided 42-field and vector layout specification",
     "direct_original_pixels_checked_in_cloud": false,
@@ -2252,6 +2252,6 @@
   "calculation": {
     "enabled_by_default": false
   },
-  "entry_notice": "転記・再出力として表示します。署名欄と手書き着時刻は空白で出力します。",
+  "entry_notice": "再生成として表示します。署名欄と手書き着時刻は空白で出力します。",
   "settings_notice": "署名・手書き着時刻は設定変更でも入力・出力できません。原票記載認証文字列の保持は認証の正当性を証明するものではありません。"
 }

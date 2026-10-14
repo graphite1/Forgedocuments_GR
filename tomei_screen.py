@@ -57,7 +57,7 @@ def validate_policy(t):
     if fields['source_certification_text'].get('fixed_value')!='GB0407016':raise ValueError('原票記載文字列 GB0407016 を保持してください')
     notices=[i for i in t['fixed_texts'] if i.get('id')=='copy_notice']
     expected_notice=next(i for i in default['fixed_texts'] if i.get('id')=='copy_notice')
-    if len(notices)!=1 or notices[0]!=expected_notice:raise ValueError('転記・再出力の識別表示と読み取れる色・大きさ・位置を保持してください')
+    if len(notices)!=1 or notices[0]!=expected_notice:raise ValueError('欄外下部の再生成表示と読み取れる色・大きさ・位置を保持してください')
     if t.get('input_color')!=[0,0,0]:raise ValueError('入力値は黒で出力してください')
     blue=t['line_color']
     if len(blue)!=3 or not 0<=min(blue)<=max(blue)<=1 or not blue[2]>max(blue[:2]):raise ValueError('固定罫線と固定文字は青で出力してください')

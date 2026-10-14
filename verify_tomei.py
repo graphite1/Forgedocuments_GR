@@ -90,7 +90,7 @@ class TomeiChecks(unittest.TestCase):
         with pymupdf.open(p) as doc:
             text=doc[0].get_text();self.assertIn('レディーミクストコンクリート納入書',text)
             self.assertIn('東名太平洋生コン株式会社',text);self.assertIn('GB0407016',text);self.assertNotIn('BG0407016',text)
-            self.assertIn('転記・再出力',text);self.assertNotIn('FAX',text)
+            self.assertIn('再生成',text);self.assertNotIn('FAX',text)
             spans=[s for b in doc[0].get_text('dict')['blocks'] if b['type']==0 for line in b['lines'] for s in line['spans']]
             for value in ('TEST_SITE','0012','005.500','TEST_ASSOCIATION'):
                 self.assertEqual(next(s['color'] for s in spans if value in s['text']),0)
@@ -124,6 +124,7 @@ class TomeiChecks(unittest.TestCase):
             frame=page.get_drawings()[0]['rect']
             for actual,expected in ((frame.x0/core.MM,14.4),(frame.y0/core.MM,13.3),(frame.width/core.MM,118.3),(frame.height/core.MM,176.5)):self.assertAlmostEqual(actual,expected,places=3)
             rect=page.search_for('TEST_ASSOCIATION')[0];self.assertGreater(rect.y0,frame.y1);self.assertTrue(page.rect.contains(rect))
+            notice=page.search_for('再生成')[0];self.assertGreater(notice.y0,frame.y1);self.assertTrue(page.rect.contains(notice));self.assertFalse(notice.intersects(rect))
 
     def test_four_up_includes_footer_extents_and_ends_with_blank_slots(self):
         t=copy.deepcopy(self.t);t['page_layout'].update(paper='A4',rows=2,columns=2,margin_x_mm=5,margin_y_mm=5,gap_x_mm=3,gap_y_mm=4,scale='fit',align_x='center',align_y='center')
