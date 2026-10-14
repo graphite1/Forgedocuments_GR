@@ -160,7 +160,8 @@
       ],
       "font": 30,
       "certainty": "高",
-      "category": "入力"
+      "category": "入力",
+      "suggestions": []
     },
     {
       "default": "",
@@ -479,7 +480,8 @@
       "align": "center",
       "wrap": true,
       "certainty": "高",
-      "category": "入力"
+      "category": "入力",
+      "suppressed_by": "receipt_image"
     },
     {
       "default": "",
@@ -547,7 +549,27 @@
       ],
       "font": 26,
       "certainty": "高",
-      "category": "入力"
+      "category": "入力",
+      "choice_marks": {
+        "1 持込": [
+          808,
+          927,
+          38,
+          38
+        ],
+        "2 P渡": [
+          808,
+          981,
+          38,
+          38
+        ]
+      },
+      "mark_bounds": [
+        802,
+        920,
+        198,
+        110
+      ]
     }
   ],
   "fixed_texts": [
@@ -922,6 +944,48 @@
       "font": 32,
       "align": "left",
       "print": true
+    },
+    {
+      "id": "company_name",
+      "value_key": "company_name",
+      "text": "",
+      "box": [
+        62,
+        1100,
+        900,
+        60
+      ],
+      "font": 40,
+      "align": "left",
+      "print": true
+    },
+    {
+      "id": "company_address",
+      "value_key": "company_address",
+      "text": "",
+      "box": [
+        62,
+        1165,
+        900,
+        46
+      ],
+      "font": 28,
+      "align": "left",
+      "print": true
+    },
+    {
+      "id": "company_contact",
+      "value_key": "company_contact",
+      "text": "",
+      "box": [
+        62,
+        1220,
+        900,
+        46
+      ],
+      "font": 26,
+      "align": "left",
+      "print": true
     }
   ],
   "lines": [
@@ -1103,5 +1167,13 @@
   "impact_pitch": 1.15,
   "impact_dot_ratio": 0.52,
   "input_stroke": 0.65,
-  "impact_stroke": 1.1
+  "impact_stroke": 1.1,
+  "form_id": "ac_toyoake",
+  "company_name": "エーシートヨアケ",
+  "company_address": "愛知県豊明市栄町神田182",
+  "company_contact": "",
+  "random_print_enabled": false,
+  "random_print_x_mm": 0.3,
+  "random_print_y_mm": 0.3,
+  "ac_defaults_version": 1
 }

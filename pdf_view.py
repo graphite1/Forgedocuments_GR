@@ -26,7 +26,10 @@ class PDFView(ttk.Frame):
         ttk.Label(self,text='右ドラッグ：移動　Ctrl＋ホイール：拡大・縮小',padding=4).pack(fill='x')
 
     def set_pdf(self,path):
-        doc=pymupdf.open(str(Path(path)))
+        # Own the bytes, never a Windows handle on a generated preview file.
+        # Opening/validating the replacement first preserves the old view if
+        # the new PDF is missing or invalid.
+        doc=pymupdf.open(stream=Path(path).read_bytes(),filetype='pdf')
         if not len(doc):doc.close();raise ValueError('PDFにページがありません')
         if self.doc:self.doc.close()
         self.doc=doc;self.page=0;self.last_size=None;self.fit_mode=True

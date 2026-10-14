@@ -1,5 +1,5 @@
 """Desktop shell. Future forms are shipped as additional catalog screen modules."""
-import json,os,sys,tempfile,traceback
+import atexit,hashlib,json,os,sys,tempfile,traceback
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk,filedialog,messagebox
@@ -101,25 +101,43 @@ def diagnostic():
 
 _instance_handle=None
 
+def release_instance():
+    global _instance_handle
+    if _instance_handle is not None:
+        import ctypes
+        kernel=ctypes.WinDLL('kernel32',use_last_error=True)
+        kernel.CloseHandle.argtypes=[ctypes.c_void_p]
+        kernel.CloseHandle(_instance_handle);_instance_handle=None
+
 def acquire_instance():
     global _instance_handle
-    if not getattr(sys,'frozen',False):return
-    import msvcrt
-    p=updates.install_root()/'.updates';p.mkdir(parents=True,exist_ok=True)
-    _instance_handle=(p/'running.lock').open('a+b')
-    _instance_handle.seek(0)
-    if not _instance_handle.read(1):_instance_handle.write(b'1');_instance_handle.flush()
-    _instance_handle.seek(0)
-    try:msvcrt.locking(_instance_handle.fileno(),msvcrt.LK_NBLCK,1)
-    except OSError:
-        _instance_handle.close();_instance_handle=None
-        raise ValueError('このアプリは既に起動しています。開いている画面をご利用ください')
+    if not getattr(sys,'frozen',False):return True
+    if _instance_handle is not None:return True
+    import ctypes
+    kernel=ctypes.WinDLL('kernel32',use_last_error=True)
+    kernel.CreateMutexW.argtypes=[ctypes.c_void_p,ctypes.c_int,ctypes.c_wchar_p]
+    kernel.CreateMutexW.restype=ctypes.c_void_p
+    kernel.CloseHandle.argtypes=[ctypes.c_void_p]
+    # One installation shares a mutex across routed versions. No reads or
+    # writes to running.lock, which could itself cause Errno 13 on Windows.
+    digest=hashlib.sha256(os.path.normcase(str(updates.install_root())).encode('utf-8')).hexdigest()
+    handle=kernel.CreateMutexW(None,False,'Local\\ForgedocumentsGR-'+digest)
+    error=ctypes.get_last_error()
+    if not handle:raise OSError(error,'起動確認に失敗しました。Windowsのアクセス権を確認してください')
+    if error==183:
+        kernel.CloseHandle(handle)
+        return False
+    _instance_handle=handle;atexit.register(release_instance)
+    return True
 
 def main():
     if '--diagnostic' in sys.argv:diagnostic();return
     if '--apply-update' in sys.argv:updates.apply_transaction(sys.argv[sys.argv.index('--apply-update')+1]);return
     if updates.route_to_current():return
-    acquire_instance()
+    if not acquire_instance():
+        root=tk.Tk();root.withdraw()
+        messagebox.showinfo('Forgedocuments GR','このアプリは既に起動しています。開いている画面をご利用ください',parent=root)
+        root.destroy();return
     root=tk.Tk();home=Home(root)
     ready=os.environ.get('FORGEDOCUMENTS_READY_FILE')
     if ready:root.after_idle(lambda:Path(ready).write_text('ready',encoding='ascii'))

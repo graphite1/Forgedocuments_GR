@@ -1,9 +1,11 @@
 """Form-specific metadata is in template.json; persistence and rendering are generic."""
 from __future__ import annotations
-import base64, copy, csv, hashlib, io, json, os, re, sqlite3, uuid
+import base64, copy, csv, hashlib, io, json, math, os, re, sqlite3, uuid
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from page_layout import placements
+from input_definitions import default_values,validate_definitions
 
 BASE = Path(__file__).resolve().parent
 MM = 72 / 25.4
@@ -24,7 +26,7 @@ def atomic_json(path, value):
         temp.unlink(missing_ok=True)
 
 def blank(template):
-    return {f['id']: str(f.get('default', '')) for f in template['fields']}
+    return default_values(template)
 
 def dec(value):
     d = Decimal(str(value))
@@ -73,12 +75,13 @@ def validate_template(t):
     w,h=float(t['width_mm']),float(t['height_mm'])
     if not (10<=w<=1000 and 10<=h<=1000): raise ValueError('寸法は10〜1000mmで設定')
     if t['page_mode'] not in ('A4','original'): raise ValueError('出力モードが不正')
-    if t['page_mode']=='A4' and (w>210 or h>297): raise ValueError('A4縦の枠内に実寸で収まりません')
+    if 'page_layout' not in t and t['page_mode']=='A4' and (w>210 or h>297): raise ValueError('A4縦の枠内に実寸で収まりません')
     ids=[f['id'] for f in t['fields']]
     if len(ids)!=len(set(ids)): raise ValueError('項目IDが重複しています')
+    validate_definitions(t['fields'],validate)
     for f in t['fields']:
         if f.get('font',28)<=0: raise ValueError('文字サイズは正数で設定')
-        for box in [f['box']]+f.get('parts',[]):
+        for box in [f['box']]+f.get('parts',[])+list(f.get('choice_marks',{}).values())+([f['mark_bounds']] if 'mark_bounds' in f else []):
             x,y,bw,bh=map(float,box)
             if x<0 or y<0 or bw<=0 or bh<=0 or x+bw>1000 or y+bh>1300: raise ValueError(f"{f['label']}: 印字領域が外周枠を超えています")
         if f.get('min') is not None and f.get('max') is not None and dec(f['min'])>dec(f['max']): raise ValueError(f"{f['label']}: 下限が上限を超えています")
@@ -86,10 +89,20 @@ def validate_template(t):
         x,y,bw,bh=map(float,item['box'])
         if x<0 or y<0 or bw<=0 or bh<=0 or x+bw>1000 or y+bh>1300: raise ValueError('固定文の印字領域が外周枠を超えています')
     if float(t.get('original_margin_mm',0.5))<0: raise ValueError('外側余白は0以上で設定')
+    if type(t.get('random_print_enabled',False)) is not bool:raise ValueError('ランダム印字はON/OFFで指定')
+    for key in ('random_print_x_mm','random_print_y_mm'):
+        value=t.get(key,0.3)
+        if isinstance(value,bool) or not math.isfinite(float(value)) or not 0<=float(value)<=2:
+            raise ValueError('ランダム印字のずれ幅は0〜2mmで設定')
+    placements(t)
     return t
 
 class Store:
-    def __init__(self, directory):
+    def __init__(self, directory, default_template=None, form_id=None):
+        self.default_template=default_template
+        self.form_id=form_id
+        if form_id and default_template is None:
+            raise ValueError('帳票専用の既定設定を指定してください')
         self.directory=Path(directory)
         self.directory.mkdir(parents=True,exist_ok=True)
         self.db=sqlite3.connect(self.directory/'records.sqlite3',timeout=10)
@@ -103,6 +116,14 @@ class Store:
         self.db.commit()
 
     def close(self): self.db.close()
+
+    def defaults(self):
+        return copy.deepcopy(self.default_template) if isinstance(self.default_template,dict) else load_template(self.default_template)
+
+    def check_form(self,t):
+        if self.form_id and t.get('form_id',self.form_id)!=self.form_id:
+            raise ValueError('別の帳票の保存先・設定は使用できません')
+        return t
 
     def list(self, archived=False):
         return [dict(id=r[0],data=json.loads(r[1]),revision=r[2],created=r[3],updated=r[4],archived=bool(r[5])) for r in self.db.execute('SELECT id,data,revision,created,updated,archived FROM records WHERE archived=? ORDER BY rowid',(int(archived),))]
@@ -136,6 +157,19 @@ class Store:
             self.db.execute('UPDATE records SET archived=?,revision=revision+1,updated=? WHERE id=?',(int(archive),now(),rid))
             self.db.execute('INSERT INTO history(record_id,at,reason,before_json,after_json) VALUES(?,?,?,?,?)',(rid,now(),'保管' if archive else '復帰',json.dumps(old,ensure_ascii=False),json.dumps(self.get(rid),ensure_ascii=False)))
 
+    def import_rows(self,rows,template,reason):
+        for data in rows:
+            errors=validate(data,template)
+            if errors:raise ValueError('\n'.join(errors))
+        ids=[]
+        with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            for data in rows:
+                rid=uuid.uuid4().hex;ids.append(rid);payload=json.dumps(data,ensure_ascii=False);at=now()
+                self.db.execute('INSERT INTO records VALUES(?,?,1,?,?,0)',(rid,payload,at,at))
+                self.db.execute('INSERT INTO history(record_id,at,reason,before_json,after_json) VALUES(?,?,?,?,?)',(rid,at,reason,None,payload))
+        return [self.get(rid) for rid in ids]
+
     def history(self,rid):
         return self.db.execute('SELECT at,reason,before_json,after_json FROM history WHERE record_id=? ORDER BY seq DESC',(rid,)).fetchall()
 
@@ -144,7 +178,7 @@ class Store:
             self.db.execute('INSERT INTO exports(at,format,path,snapshot,template) VALUES(?,?,?,?,?)',(now(),fmt,str(path),json.dumps(records,ensure_ascii=False),json.dumps(template,ensure_ascii=False)))
 
     def set_template(self,t):
-        validate_template(t)
+        self.check_form(t);validate_template(t)
         path=self.directory/'template.json'
         old=path.read_text(encoding='utf-8') if path.exists() else None
         # JSON lives in SQLite as the authoritative settings history, file is a portable copy.
@@ -155,16 +189,16 @@ class Store:
     def template(self):
         row=self.db.execute('SELECT after_json FROM settings ORDER BY seq DESC LIMIT 1').fetchone()
         if row:
-            t=validate_template(json.loads(row[0]))
+            t=validate_template(self.check_form(json.loads(row[0])))
             if 'input_print_style' not in t:
-                defaults=load_template()
+                defaults=self.defaults()
                 for key in ('input_print_style','impact_pitch','impact_dot_ratio','impact_stroke','input_stroke'):
                     t[key]=defaults.get(key)
                 if t.get('input_color')==[0.13,0.38,0.57]:t['input_color']=defaults['input_color']
                 self.set_template(t)
             return t
         path=self.directory/'template.json'
-        t=load_template(path if path.exists() else None)
+        t=load_template(path) if path.exists() else self.defaults()
         self.set_template(t)
         return t
 
@@ -266,6 +300,19 @@ def fit_text(value,font,size,w,h,wrap=False,min_font=14):
         size-=0.5
     raise ValueError('文字が欄内に収まりません。文字数を減らすか、設定の欄・文字サイズを調整してください')
 
+def print_offset(values,t,occurrence=0):
+    """Stable random-looking offset in form coordinates, independent of row IDs.
+
+    Identical input previews and saved records have the same placement. Repeated
+    identical pages get separate offsets, reproducible for the same page set.
+    """
+    if not t.get('random_print_enabled',False):return 0.0,0.0
+    payload=json.dumps([values,occurrence],ensure_ascii=False,sort_keys=True,separators=(',',':')).encode('utf-8')
+    digest=hashlib.sha256(payload).digest()
+    unit=lambda start: int.from_bytes(digest[start:start+8],'big')/(2**64-1)*2-1
+    return (unit(0)*float(t.get('random_print_x_mm',.3))*1000/float(t['width_mm']),
+            unit(8)*float(t.get('random_print_y_mm',.3))*1300/float(t['height_mm']))
+
 def render_pdf(path,records,t,validate_records=True):
     from reportlab.pdfgen import canvas
     from reportlab.lib.utils import ImageReader
@@ -273,18 +320,23 @@ def render_pdf(path,records,t,validate_records=True):
     if not records: raise ValueError('出力対象がありません')
     font=font_name(t)
     impact_cache={}
+    occurrences={}
     fw,fh=float(t['width_mm'])*MM,float(t['height_mm'])*MM
-    page=(210*MM,297*MM) if t['page_mode']=='A4' else (fw+2*t.get('original_margin_mm',0.5)*MM,fh+2*t.get('original_margin_mm',0.5)*MM)
+    page,slots=placements(t)
     destination=Path(path); temp=destination.with_name(destination.name+'.'+uuid.uuid4().hex+'.tmp')
     try:
         c=canvas.Canvas(str(temp),pagesize=page,pageCompression=1)
         c.setTitle(t['name'])
-        for r in records:
+        for index,r in enumerate(records):
+            if index and index%len(slots)==0:c.showPage()
             values=r.get('data',r)
+            content=json.dumps(values,ensure_ascii=False,sort_keys=True)
+            occurrence=occurrences.get(content,0);occurrences[content]=occurrence+1
+            shift_x,shift_y=print_offset(values,t,occurrence)
             errs=validate(values,t) if validate_records else []
             if errs: raise ValueError('\n'.join(errs))
-            ox=(page[0]-fw)/2; oy=(page[1]-fh)/2
-            c.saveState(); c.translate(ox,oy+fh); c.scale(fw/1000,-fh/1300)
+            ox,oy,scale=slots[index%len(slots)]
+            c.saveState(); c.translate(ox,oy+fh*scale); c.scale(fw/1000*scale,-fh/1300*scale)
             c.setStrokeColorRGB(*t['line_color']); c.setFillColorRGB(*t['line_color']); c.setLineWidth(t['line_width'])
             c.rect(0,0,1000,1300,stroke=1,fill=0)
             for line in t['lines']:
@@ -303,6 +355,13 @@ def render_pdf(path,records,t,validate_records=True):
                     if align=='center': tx+=(w-width)/2
                     if align=='right': tx+=w-width
                     top=y+(h-len(lines)*size*1.18)/2+i*size*1.18
+                    if color is not None:
+                        tx=max(x,min(x+w-width,tx+shift_x))
+                        # Shift all lines together, keeping their full line boxes
+                        # inside the original field. Do not move the ruled form.
+                        base=y+(h-len(lines)*size*1.18)/2
+                        delta=max(y-base,min(y+h-len(lines)*size*1.18-base,shift_y))
+                        top+=delta
                     c.saveState(); c.translate(tx,top+size*.91); c.scale(1,-1)
                     if color is not None and t.get('input_print_style','smooth')=='impact':
                         # A regular pin grid makes the input look like impact-printer ink.
@@ -342,31 +401,33 @@ def render_pdf(path,records,t,validate_records=True):
                         else:c.drawString(0,0,s)
                     c.restoreState()
             for item in t['fixed_texts']:
-                if item.get('print',True): text(item['text'],item['box'],item.get('font',28),item.get('align','left'),item.get('wrap',False),min_font=item.get('min_font',14))
+                if item.get('print',True): text(t.get(item['value_key'],'') if 'value_key' in item else item['text'],item['box'],item.get('font',28),item.get('align','left'),item.get('wrap',False),min_font=item.get('min_font',14))
             for f in t['fields']:
                 if not f.get('print',True): continue
                 value=values.get(f['id'],'')
                 if not value: continue
-                if f['id']=='method':
+                if value in f.get('choice_marks',{}):
                     c.setStrokeColorRGB(*t['input_color']);c.setLineWidth(1.5)
-                    cy=946 if value=='1 持込' else 1000
-                    c.ellipse(808,cy-19,846,cy+19,stroke=1,fill=0)
+                    x,y,w,h=f['choice_marks'][value];bx,by,bw,bh=f.get('mark_bounds',[0,0,1000,1300])
+                    dx=max(bx-x,min(bx+bw-x-w,shift_x));dy=max(by-y,min(by+bh-y-h,shift_y))
+                    c.ellipse(x+dx,y+dy,x+w+dx,y+h+dy,stroke=1,fill=0)
                     c.setStrokeColorRGB(*t['line_color']);c.setLineWidth(t['line_width'])
                     continue
                 if f['type']=='image':
                     x,y,w,h=f['box']
                     im=ImageReader(io.BytesIO(base64.b64decode(value)))
                     iw,ih=im.getSize(); scale=min(w/iw,h/ih); dw,dh=iw*scale,ih*scale
-                    c.saveState();c.translate(x+(w-dw)/2,y+(h+dh)/2);c.scale(1,-1);c.drawImage(im,0,0,dw,dh,mask='auto');c.restoreState()
+                    dx=max(-(w-dw)/2,min((w-dw)/2,shift_x));dy=max(-(h-dh)/2,min((h-dh)/2,shift_y))
+                    c.saveState();c.translate(x+(w-dw)/2+dx,y+(h+dh)/2+dy);c.scale(1,-1);c.drawImage(im,0,0,dw,dh,mask='auto');c.restoreState()
                     continue
-                if f['id']=='receipt_text' and values.get('receipt_image'): continue
+                if f.get('suppressed_by') and values.get(f['suppressed_by']): continue
                 if f.get('parts'):
                     parts=value.split('-' if f['type']=='date' else ':')
                     for part,box in zip(parts,f['parts']): text(part,box,f.get('font',28),f.get('align','center'),color=t['input_color'],min_font=f.get('min_font',14))
                 else:
                     text(value,f['box'],f.get('font',28),f.get('align','left'),f.get('wrap',False),t['input_color'],f.get('min_font',14))
-            c.restoreState();c.showPage()
-        c.save();os.replace(temp,destination)
+            c.restoreState()
+        c.showPage();c.save();os.replace(temp,destination)
     finally: temp.unlink(missing_ok=True)
     return page
 

@@ -1,0 +1,13 @@
+{
+  "app_id": "forgedocuments-gr",
+  "download_url": "https://gr-release-hub.rinntyu2000.chatgpt.site/api/apps/forgedocuments-gr/releases/1/download",
+  "key_id": "forgedocuments-gr-2026-01",
+  "minimum_updater_version": "1.0.0",
+  "published_at": "2026-10-14T04:48:46Z",
+  "release_notes": "帳票選択画面にエーシー帳票を搭載。Python不要のexe起動、GRHubからの署名付きアプリ内更新、右ドラッグとCtrl＋ホイールによる共通PDFプレビュー。既存の伝票と会社別設定を保持。今後はアップデートで帳票画面を追加。",
+  "schema_version": 1,
+  "sequence": 1,
+  "sha256": "0c09d590eb1c7552e81387b5bb8c173bc2ee2594f9e30957ee7f3c2360509f28",
+  "signature": "GHlLKEbpFH2+5gDWjntT+lOkRFzOy8S+cxjRpWNY9+CBQeHR+4vM0SXRhy0BbSdLG25DCkVrQvgjEqm/1wxHBA==",
+  "version": "1.3.0"
+}
