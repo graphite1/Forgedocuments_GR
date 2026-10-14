@@ -12,3 +12,7 @@ data/
 test-results/
 .DS_Store
 Thumbs.db
+build/
+dist/
+*.spec
+.updates/

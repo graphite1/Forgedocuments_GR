@@ -1,0 +1,8 @@
+[
+  {
+    "id": "ac_toyoake",
+    "title": "エーシー帳票",
+    "description": "運搬明細書の入力・保存・集計・PDF出力",
+    "module": "ac_screen"
+  }
+]
