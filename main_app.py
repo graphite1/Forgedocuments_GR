@@ -52,7 +52,7 @@ class Home:
             except Exception:win.destroy();raise
             self.screens[row['id']]=screen
             # Form-owned folder selection returns to the shell; no nested mainloops.
-            screen.switch_folder=lambda:self.switch(row,screen)
+            screen.folder_switch_handler=lambda:self.switch(row,screen)
         except Exception as e:messagebox.showerror('帳票を開けません',str(e),parent=self.root)
 
     def switch(self,row,screen):

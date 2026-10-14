@@ -84,4 +84,12 @@ class PlatformChecks(unittest.TestCase):
         with patch('main_app.profiles_path',return_value=p):self.assertEqual(read_profiles()['ac_toyoake'],str(self.path/'old-ac'))
         self.assertFalse(p.exists())
 
+    def test_folder_button_uses_shell_handler(self):
+        from ac_screen import App
+        root=tk.Tk();root.withdraw();screen=App(root,self.path/'button-ac');calls=[]
+        screen.folder_switch_handler=lambda:calls.append('switch')
+        bar=root.winfo_children()[0]
+        button=next(w for w in bar.winfo_children() if w.winfo_class()=='TButton' and w.cget('text')=='保存先を切替')
+        button.invoke();self.assertEqual(calls,['switch']);screen.store.close();root.destroy()
+
 if __name__=='__main__':unittest.main(verbosity=2)

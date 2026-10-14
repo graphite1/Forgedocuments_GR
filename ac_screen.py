@@ -315,6 +315,8 @@ class App:
         self.guarded(run)
 
     def switch_folder(self):
+        handler=getattr(self,'folder_switch_handler',None)
+        if handler:return handler()
         if not self.may_leave():return
         path=filedialog.askdirectory(title='別の保存先を選択（再起動します）',parent=self.root)
         if not path:return
