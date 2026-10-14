@@ -50,3 +50,5 @@ DISPLAY=:99 python -B tools/verify_tomei_plan.py PRIVATE_NEW_SETTINGS.json EXAMP
 ```
 
 Linuxの日本語CID代替フォントを使う。Windowsの字体・EXE起動・mutex・実機プリンター・署名付き更新は未確認。寸法の物理測定、元PDFとの重ね比較、JIS単独素材照合は未完。正式リリース・mainへのマージ・GRHub更新は行わない。
+
+現在の見本・設定は保存済みクラウドの `private/plan-20261014/` にある。Library保存は正規複数アップロードhelperの接続確認がnetworkエラーとなり未完で、新しいLibrary IDはない。ZIPとPDF・画像・設定JSONをローカル成果物として保持した。必要なのは画像受信権限の追加ではなく、クラウド実行環境からの正規Library保存接続の復旧である。具体的な拒否コードはhelperから返らないため、403や権限不足と断定しない。
