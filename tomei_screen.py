@@ -44,6 +44,10 @@ def validate_blank_regions(t,default):
 def validate_policy(t):
     default=load_template(DEFINITION)
     if t.get('form_id')!=FORM_ID:raise ValueError('別帳票の設定です')
+    if t.get('render_mode')!='background':raise ValueError('生コンは原票の青印字背景と黒入力を合成してください')
+    if t.get('document_purpose')!='delivery_plan':raise ValueError('生コンの出力は納入計画として表示してください')
+    if t.get('overlay_fixed_text_ids')!=['copy_notice']:raise ValueError('青い固定印字を文字や罫線で描き直しません')
+    if t.get('background_blank_regions_mm')!=default['background_blank_regions_mm']:raise ValueError('背景の署名・着時刻の空欄保持範囲を維持してください')
     expected={f['id']:f for f in default['fields']};fields={f['id']:f for f in t['fields']}
     if set(fields)!=set(expected) or len(t['fields'])!=42:raise ValueError('生コンの42項目定義を保持してください')
     for key,f in fields.items():
@@ -57,7 +61,7 @@ def validate_policy(t):
     if fields['source_certification_text'].get('fixed_value')!='GB0407016':raise ValueError('原票記載文字列 GB0407016 を保持してください')
     notices=[i for i in t['fixed_texts'] if i.get('id')=='copy_notice']
     expected_notice=next(i for i in default['fixed_texts'] if i.get('id')=='copy_notice')
-    if len(notices)!=1 or notices[0]!=expected_notice:raise ValueError('欄外下部の再生成表示と読み取れる色・大きさ・位置を保持してください')
+    if len(notices)!=1 or notices[0]!=expected_notice:raise ValueError('各伝票の納入書（計画）表示と読み取れる色・大きさ・位置を保持してください')
     if t.get('input_color')!=[0,0,0]:raise ValueError('入力値は黒で出力してください')
     blue=t['line_color']
     if len(blue)!=3 or not 0<=min(blue)<=max(blue)<=1 or not blue[2]>max(blue[:2]):raise ValueError('固定罫線と固定文字は青で出力してください')
@@ -75,4 +79,5 @@ def validate_policy(t):
 class App(DefinitionScreen):
     def __init__(self,root,directory):
         t=load_template(DEFINITION);validate_policy(t)
-        super().__init__(root,directory,t,validate_policy)
+        from tomei_defaults import migrate_background
+        super().__init__(root,directory,t,validate_policy,lambda value:migrate_background(value,t))

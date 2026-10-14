@@ -13,9 +13,9 @@ from settings_widgets import LayoutSettings,FieldDefaultsSettings
 
 
 class DefinitionScreen:
-    def __init__(self,root,directory,default_template,validate_policy):
+    def __init__(self,root,directory,default_template,validate_policy,migrate_definition=None):
         self.root=root;self.default_template=copy.deepcopy(default_template);self.validate_policy=validate_policy
-        self.store=Store(directory,default_template=default_template,form_id=default_template['form_id'],validate_definition=validate_policy)
+        self.store=Store(directory,default_template=default_template,form_id=default_template['form_id'],validate_definition=validate_policy,migrate_definition=migrate_definition)
         try:
             self.template=self.store.template();self.validate_policy(self.template)
         except Exception:self.store.close();raise
@@ -52,7 +52,7 @@ class DefinitionScreen:
         bar=ttk.Frame(self.entrytab,padding=8);bar.pack(fill='x')
         for label,fn in (('新規',self.new),('保存',self.save),('プレビュー',self.preview_current)):
             ttk.Button(bar,text=label,command=lambda f=fn:self.guarded(f)).pack(side='left',padx=4)
-        ttk.Label(bar,text='実際の記録を入力｜日付 YYYY-MM-DD｜時刻 HH:MM｜未記載は空欄').pack(side='left',padx=10)
+        ttk.Label(bar,text=self.template.get('entry_value_label','実際の記録を入力｜日付 YYYY-MM-DD｜時刻 HH:MM｜未記載は空欄')).pack(side='left',padx=10)
         pane=ttk.Panedwindow(self.entrytab,orient='horizontal');pane.pack(fill='both',expand=True)
         left=ttk.Frame(pane);right=ttk.Frame(pane);pane.add(left,weight=3);pane.add(right,weight=2)
         canvas=tk.Canvas(left,highlightthickness=0);scroll=ttk.Scrollbar(left,orient='vertical',command=canvas.yview);canvas.configure(yscrollcommand=scroll.set)
@@ -202,7 +202,7 @@ class DefinitionScreen:
         cfg=self.template['summary_config'];rows=self.selected()
         result=summary(rows,cfg.get('number_field'),cfg['quantity_field'],cfg.get('unit_field'))
         totals='\n'.join(f"{value} {unit or cfg.get('unit','')}" for unit,value in result['quantity_totals'].items()) or '0'
-        messagebox.showinfo('選択した実績の集計',f"件数: {result['count']}\n数量合計:\n{totals}\n数量未記載: {result['missing_quantity_count']}件",parent=self.root)
+        messagebox.showinfo(self.template.get('quantity_summary_title','選択した記録の集計'),f"件数: {result['count']}\n数量合計:\n{totals}\n数量未記載: {result['missing_quantity_count']}件",parent=self.root)
 
     def build_settings(self):
         bar=ttk.Frame(self.settingtab,padding=8);bar.pack(side='bottom',fill='x')
@@ -213,6 +213,10 @@ class DefinitionScreen:
         body=ttk.Frame(canvas,padding=8);win=canvas.create_window((0,0),window=body,anchor='nw')
         body.bind('<Configure>',lambda e:canvas.configure(scrollregion=canvas.bbox('all')));canvas.bind('<Configure>',lambda e:canvas.itemconfigure(win,width=e.width))
         self.layout_settings=LayoutSettings(body,self.template);self.layout_settings.pack(fill='x',pady=5)
+        self.background_settings=None
+        if self.template.get('render_mode')=='background':
+            from background_settings import BackgroundSettings
+            self.background_settings=BackgroundSettings(body,self.template);self.background_settings.pack(fill='x',pady=5)
         self.field_settings=FieldDefaultsSettings(body,self.template);self.field_settings.pack(fill='x',pady=5)
         random=ttk.LabelFrame(body,text='入力文字の位置だけをずらす（内容は変えません）',padding=6);random.pack(fill='x')
         self.random_enabled=tk.BooleanVar(value=self.template.get('random_print_enabled',False));ttk.Checkbutton(random,text='ランダム印字',variable=self.random_enabled).grid(row=0,column=0)
@@ -225,11 +229,14 @@ class DefinitionScreen:
     def save_settings(self):
         if not self.may_leave():return
         t=json.loads(self.json_edit.get('1.0','end'));self.layout_settings.apply(t);self.field_settings.apply(t)
+        if self.background_settings:self.background_settings.apply(t)
         t['random_print_enabled']=self.random_enabled.get()
         for key,v in self.random_axes.items():t[key]=float(v.get())
         self.validate_policy(t);validate_template(t)
-        with generated_pdf(self.store.directory/'preview','settings') as path:render_pdf(path,[blank(t)],t)
+        if t.get('render_mode')!='background' or t.get('background',{}).get('status')=='ready':
+            with generated_pdf(self.store.directory/'preview','settings') as path:render_pdf(path,[blank(t)],t)
         data=self.values();self.store.set_template(t);self.template=t
+        if self.background_settings:self.background_settings.saved(t)
         for child in self.entrytab.winfo_children():child.destroy()
         self.vars={};self.widgets={};self.choice_vars={};self.build_entry();self.set_values(data)
         self.json_edit.delete('1.0','end');self.json_edit.insert('1.0',json.dumps(t,ensure_ascii=False,indent=2));self.status.set('設定を保存しました。既存記録は保持しています')
@@ -238,8 +245,9 @@ class DefinitionScreen:
         path=filedialog.askopenfilename(filetypes=[('JSON','*.json')],parent=self.root)
         if not path:return
         from core import load_template
-        t=load_template(path);self.validate_policy(t);validate_template(t)
+        t=self.store.prepare_definition(load_template(path));self.validate_policy(t);validate_template(t)
         self.layout_settings.load(t);self.field_settings.load(t);self.random_enabled.set(t.get('random_print_enabled',False))
+        if self.background_settings:self.background_settings.load(t)
         for key,v in self.random_axes.items():v.set(str(t.get(key,.3)))
         self.json_edit.delete('1.0','end');self.json_edit.insert('1.0',json.dumps(t,ensure_ascii=False,indent=2));self.status.set('設定を読み込みました。適用・保存で確定します')
 

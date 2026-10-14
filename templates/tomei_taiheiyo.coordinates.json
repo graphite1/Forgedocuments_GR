@@ -1,0 +1,423 @@
+{
+  "schema_version": 1,
+  "unit": "mm",
+  "source": "visible fixed-layout explanation; final source pixel alignment pending",
+  "fields": [
+    {
+      "id": "delivery_date",
+      "box_mm": [
+        78,
+        12,
+        38,
+        5.2
+      ],
+      "parts_mm": [
+        [
+          78,
+          12,
+          10.5,
+          5.2
+        ],
+        [
+          94.5,
+          12,
+          7,
+          5.2
+        ],
+        [
+          106.3,
+          12,
+          7,
+          5.2
+        ]
+      ],
+      "align": "center"
+    },
+    {
+      "id": "recipient",
+      "box_mm": [
+        3.0,
+        15.0,
+        49.0,
+        10.0
+      ]
+    },
+    {
+      "id": "delivery_place",
+      "box_mm": [
+        18.0,
+        41.6,
+        100.3,
+        11.9
+      ]
+    },
+    {
+      "id": "vehicle_number",
+      "box_mm": [
+        18.0,
+        53.5,
+        42.3,
+        7.9
+      ]
+    },
+    {
+      "id": "cumulative_truck_count",
+      "box_mm": [
+        74.4,
+        53.5,
+        35.2,
+        7.9
+      ]
+    },
+    {
+      "id": "departure_time",
+      "box_mm": [
+        27.5,
+        61.4,
+        39.5,
+        7.8
+      ],
+      "parts_mm": [
+        [
+          27.5,
+          61.4,
+          16,
+          7.8
+        ],
+        [
+          49,
+          61.4,
+          13.5,
+          7.8
+        ]
+      ],
+      "align": "center"
+    },
+    {
+      "id": "delivery_volume",
+      "box_mm": [
+        18.0,
+        69.2,
+        36.3,
+        7.9
+      ]
+    },
+    {
+      "id": "cumulative_volume",
+      "box_mm": [
+        74.4,
+        69.2,
+        37.9,
+        7.9
+      ]
+    },
+    {
+      "id": "concrete_type",
+      "box_mm": [
+        18.0,
+        83.4,
+        28.3,
+        6.9
+      ]
+    },
+    {
+      "id": "nominal_strength",
+      "box_mm": [
+        46.3,
+        83.4,
+        18.7,
+        6.9
+      ]
+    },
+    {
+      "id": "slump_or_flow",
+      "box_mm": [
+        65.0,
+        83.4,
+        20.2,
+        6.9
+      ]
+    },
+    {
+      "id": "max_aggregate_size",
+      "box_mm": [
+        85.2,
+        83.4,
+        17.5,
+        6.9
+      ]
+    },
+    {
+      "id": "cement_type",
+      "box_mm": [
+        102.7,
+        83.4,
+        15.6,
+        6.9
+      ]
+    },
+    {
+      "id": "cement_1",
+      "box_mm": [
+        18.0,
+        94.0,
+        14.1,
+        7.3
+      ]
+    },
+    {
+      "id": "cement_2",
+      "box_mm": [
+        32.1,
+        94.0,
+        14.2,
+        7.3
+      ]
+    },
+    {
+      "id": "mineral_admixture",
+      "box_mm": [
+        46.3,
+        94.0,
+        14.0,
+        7.3
+      ]
+    },
+    {
+      "id": "water",
+      "box_mm": [
+        60.3,
+        94.0,
+        14.1,
+        7.3
+      ]
+    },
+    {
+      "id": "fine_aggregate_1",
+      "box_mm": [
+        74.4,
+        94.0,
+        14.2,
+        7.3
+      ]
+    },
+    {
+      "id": "fine_aggregate_2",
+      "box_mm": [
+        88.6,
+        94.0,
+        14.0,
+        7.3
+      ]
+    },
+    {
+      "id": "fine_aggregate_3",
+      "box_mm": [
+        102.6,
+        94.0,
+        15.7,
+        7.3
+      ]
+    },
+    {
+      "id": "coarse_aggregate_1",
+      "box_mm": [
+        18.0,
+        104.4,
+        14.1,
+        6.8
+      ]
+    },
+    {
+      "id": "coarse_aggregate_2",
+      "box_mm": [
+        32.1,
+        104.4,
+        14.2,
+        6.8
+      ]
+    },
+    {
+      "id": "coarse_aggregate_3",
+      "box_mm": [
+        46.3,
+        104.4,
+        14.0,
+        6.8
+      ]
+    },
+    {
+      "id": "coarse_aggregate_4",
+      "box_mm": [
+        60.3,
+        104.4,
+        14.1,
+        6.8
+      ]
+    },
+    {
+      "id": "chemical_admixture_1",
+      "box_mm": [
+        74.4,
+        104.4,
+        21.95,
+        6.8
+      ]
+    },
+    {
+      "id": "chemical_admixture_2",
+      "box_mm": [
+        96.35,
+        104.4,
+        21.95,
+        6.8
+      ]
+    },
+    {
+      "id": "water_cement_ratio",
+      "box_mm": [
+        0.0,
+        114.1,
+        22.5,
+        3.6
+      ]
+    },
+    {
+      "id": "water_binder_ratio",
+      "box_mm": [
+        26.5,
+        114.1,
+        22.5,
+        3.6
+      ]
+    },
+    {
+      "id": "fine_aggregate_ratio",
+      "box_mm": [
+        53.0,
+        114.1,
+        26.5,
+        3.6
+      ]
+    },
+    {
+      "id": "sludge_solids_ratio",
+      "box_mm": [
+        83.5,
+        114.1,
+        30.8,
+        3.6
+      ]
+    },
+    {
+      "id": "recovered_fine_aggregate_ratio",
+      "box_mm": [
+        18.0,
+        120.6,
+        33.0,
+        3.5
+      ]
+    },
+    {
+      "id": "recovered_coarse_aggregate_ratio",
+      "box_mm": [
+        55.0,
+        120.6,
+        22.0,
+        3.5
+      ]
+    },
+    {
+      "id": "sludge_water_method",
+      "box_mm": [
+        81.0,
+        120.6,
+        37.3,
+        3.5
+      ]
+    },
+    {
+      "id": "mix_basis",
+      "box_mm": [
+        4.0,
+        126.0,
+        113.0,
+        11.0
+      ],
+      "options": [
+        {
+          "key": "automatic_from_printed_weighing_record",
+          "box_mm": [
+            24.7,
+            127.2,
+            1.8,
+            1.8
+          ]
+        },
+        {
+          "key": "calculated_from_printed_weighing_record",
+          "box_mm": [
+            74.5,
+            127.2,
+            1.8,
+            1.8
+          ]
+        },
+        {
+          "key": "calculated_from_read_weighing_record",
+          "box_mm": [
+            24.7,
+            131.2,
+            1.8,
+            1.8
+          ]
+        },
+        {
+          "key": "modified_standard_mix",
+          "box_mm": [
+            74.5,
+            131.2,
+            1.8,
+            1.8
+          ]
+        },
+        {
+          "key": "standard_mix",
+          "box_mm": [
+            96.5,
+            131.2,
+            1.8,
+            1.8
+          ]
+        }
+      ]
+    },
+    {
+      "id": "remarks",
+      "box_mm": [
+        6.5,
+        137,
+        110.3,
+        18
+      ]
+    },
+    {
+      "id": "mix_plan_number",
+      "box_mm": [
+        6.5,
+        155,
+        110.3,
+        9
+      ]
+    },
+    {
+      "id": "association_name",
+      "box_mm": [
+        4.0,
+        176.5,
+        88,
+        5.0
+      ]
+    }
+  ]
+}

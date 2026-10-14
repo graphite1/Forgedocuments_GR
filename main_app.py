@@ -98,7 +98,11 @@ def diagnostic():
             root=tk.Tk();root.withdraw();screen=None
             try:
                 screen=open_screen(row,root,Path(directory)/row['id'])
-                screen.set_values(blank(screen.template));screen.preview_current();root.update()
+                screen.set_values(blank(screen.template))
+                if screen.template.get('render_mode')=='background' and screen.template.get('background',{}).get('status')=='missing':
+                    print(row['id']+': background source pending; input/storage checks completed')
+                else:screen.preview_current()
+                root.update()
             finally:
                 if screen:screen.store.close()
                 root.destroy()

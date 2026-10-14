@@ -14,7 +14,16 @@ def now():
     return datetime.now(timezone.utc).isoformat(timespec='microseconds')
 
 def load_template(path=None):
-    return json.loads(Path(path or BASE/'template.json').read_text(encoding='utf-8-sig'))
+    path=Path(path or BASE/'template.json')
+    template=json.loads(path.read_text(encoding='utf-8-sig'))
+    definition=template.pop('coordinate_definition',None)
+    if definition:
+        from input_coordinates import apply_coordinates
+        coordinate_path=(path.parent/definition).resolve()
+        if not coordinate_path.is_relative_to(path.parent.resolve()):raise ValueError('座標定義は帳票定義のフォルダー内で指定してください')
+        template=apply_coordinates(template,json.loads(coordinate_path.read_text(encoding='utf-8-sig')))
+        template['coordinate_source']=definition
+    return template
 
 def atomic_json(path, value):
     path = Path(path)
@@ -87,6 +96,10 @@ def validate_template(t):
     ids=[f['id'] for f in t['fields']]
     if len(ids)!=len(set(ids)): raise ValueError('項目IDが重複しています')
     validate_definitions(t['fields'],validate)
+    if t.get('render_mode','vector') not in ('vector','background'):raise ValueError('帳票の合成方式が不正です')
+    if t.get('render_mode')=='background':
+        from background_assets import validate_background
+        validate_background(t)
     coord_w,coord_h=float(t.get('coordinate_width',1000)),float(t.get('coordinate_height',1300))
     if not all(math.isfinite(v) and 10<=v<=10000 for v in (coord_w,coord_h)):raise ValueError('帳票座標の範囲が不正です')
     max_y=coord_h*float(t.get('content_height_mm',h))/h
@@ -113,10 +126,11 @@ def validate_template(t):
     return t
 
 class Store:
-    def __init__(self, directory, default_template=None, form_id=None, validate_definition=None):
+    def __init__(self, directory, default_template=None, form_id=None, validate_definition=None, migrate_definition=None):
         self.default_template=default_template
         self.form_id=form_id
         self.validate_definition=validate_definition
+        self.migrate_definition=migrate_definition
         if form_id and default_template is None:
             raise ValueError('帳票専用の既定設定を指定してください')
         self.directory=Path(directory)
@@ -211,7 +225,10 @@ class Store:
     def template(self):
         row=self.db.execute('SELECT after_json FROM settings ORDER BY seq DESC LIMIT 1').fetchone()
         if row:
-            t=validate_template(self.check_form(json.loads(row[0])))
+            stored=json.loads(row[0])
+            t=self.prepare_definition(stored)
+            t=validate_template(self.check_form(t))
+            if t!=stored:self.set_template(t)
             if 'input_print_style' not in t:
                 defaults=self.defaults()
                 for key in ('input_print_style','impact_pitch','impact_dot_ratio','impact_stroke','input_stroke'):
@@ -220,9 +237,14 @@ class Store:
                 self.set_template(t)
             return t
         path=self.directory/'template.json'
-        t=load_template(path) if path.exists() else self.defaults()
+        t=self.prepare_definition(load_template(path) if path.exists() else self.defaults())
         self.set_template(t)
         return t
+
+    def prepare_definition(self,t):
+        # A form-specific migration must not touch another form's settings.
+        if self.form_id and t.get('form_id',self.form_id)!=self.form_id:raise ValueError('別の帳票の保存先・設定は使用できません')
+        return self.migrate_definition(t) if self.migrate_definition else t
 
     def backup(self,path,t):
         other=sqlite3.connect(path)
@@ -359,6 +381,10 @@ def render_pdf(path,records,t,validate_records=True):
     from reportlab.lib.utils import ImageReader
     validate_template(t)
     if not records: raise ValueError('出力対象がありません')
+    background=None
+    if t.get('render_mode')=='background':
+        from background_assets import load_background
+        background=load_background(t)
     font=font_name(t)
     base_font=font;style_fonts={}
     impact_cache={}
@@ -381,9 +407,13 @@ def render_pdf(path,records,t,validate_records=True):
             ox,oy,scale=slots[index%len(slots)]
             c.saveState(); c.translate(ox,oy+fh*scale); c.scale(fw/coord_w*scale,-fh/coord_h*scale)
             c.setStrokeColorRGB(*t['line_color']); c.setFillColorRGB(*t['line_color']); c.setLineWidth(t['line_width'])
-            c.rect(0,0,coord_w,coord_h,stroke=1,fill=0)
-            for line in t['lines']:
-                c.setDash(*line.get('dash',[])); c.line(*line['points'])
+            if background is not None:
+                from background_compositor import draw_background
+                draw_background(c,background,coord_w,coord_h)
+            else:
+                c.rect(0,0,coord_w,coord_h,stroke=1,fill=0)
+                for line in t['lines']:
+                    c.setDash(*line.get('dash',[])); c.line(*line['points'])
             c.setDash()
             def text(value,box,size=28,align='left',wrap=False,color=None,min_font=14,is_input=None,font_override=None):
                 if not value: return
@@ -446,19 +476,26 @@ def render_pdf(path,records,t,validate_records=True):
                         else:c.drawString(0,0,s)
                     c.restoreState()
             for item in t['fixed_texts']:
+                if background is not None and item.get('id') not in t.get('overlay_fixed_text_ids',[]):continue
                 style=item.get('font_style')
                 if style not in style_fonts:style_fonts[style]=styled_font(t,style,base_font)
                 if item.get('print',True): text(t.get(item['value_key'],'') if 'value_key' in item else item['text'],item['box'],item.get('font',28),item.get('align','left'),item.get('wrap',False),color=item.get('color'),min_font=item.get('min_font',14),is_input=False,font_override=style_fonts[style])
+            if background is not None and t['background'].get('kind')=='synthetic_test':
+                # Synthetic assets demonstrate the pipeline, never original fidelity.
+                text('合成基盤デモ・原票背景未取得',[coord_w*.03,coord_h*.04,coord_w*.94,coord_h*.035],size=coord_w*.018,min_font=coord_w*.012,color=[.4,.4,.4],is_input=False)
             for f in t['fields']:
                 if f['type']=='layout_only':continue
                 if not f.get('print',True): continue
                 is_input=f.get('input',True)
+                if background is not None and not is_input:continue
                 value=values.get(f['id'],'') if is_input else f.get('fixed_value','')
                 if f['type']=='multi_choice':
                     selected=json.loads(value) if value else []
                     for option in f['options']:
-                        x,y,w,h=option['box'];c.setStrokeColorRGB(*t['line_color']);c.setLineWidth(t['line_width']);c.rect(x,y,w,h,stroke=1,fill=0)
-                        text(option['label'],option['label_box'],option.get('font',16),min_font=option.get('min_font',10),is_input=False)
+                        x,y,w,h=option['box']
+                        if background is None:
+                            c.setStrokeColorRGB(*t['line_color']);c.setLineWidth(t['line_width']);c.rect(x,y,w,h,stroke=1,fill=0)
+                            text(option['label'],option['label_box'],option.get('font',16),min_font=option.get('min_font',10),is_input=False)
                         if option['key'] in selected:
                             c.setStrokeColorRGB(*t['input_color']);c.setLineWidth(t.get('input_stroke',.5))
                             dx=max(-w*.2,min(w*.2,shift_x));dy=max(-h*.2,min(h*.2,shift_y))

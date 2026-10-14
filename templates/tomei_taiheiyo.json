@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "form_id": "tomei_taiheiyo",
-  "name": "東名太平洋生コン・転記再出力",
+  "name": "東名太平洋生コン 納入書（計画）",
   "source_version": "1.3",
   "width_mm": 118.3,
   "height_mm": 176.5,
@@ -1167,7 +1167,7 @@
       "box": [
         33.8123415046492,
         1491.9695688926458,
-        760.777683854607,
+        743.8715131022823,
         42.265426880811496
       ],
       "font": 21.978021978021978,
@@ -1842,23 +1842,23 @@
       "id": "shipping_sign_heading"
     },
     {
-      "text": "再生成",
+      "text": "納入書（計画）",
       "box": [
-        828.4023668639053,
+        794.5900253592562,
         1496.196111580727,
-        143.7024513947591,
+        194.42096365173288,
         33.8123415046492
       ],
-      "font": 18.59678782755706,
-      "min_font": 15.215553677092139,
+      "font": 21.978021978021978,
+      "min_font": 18.59678782755706,
       "align": "left",
       "print": true,
       "wrap": true,
       "id": "copy_notice",
       "color": [
-        0.25,
-        0.25,
-        0.25
+        0.15,
+        0.15,
+        0.15
       ]
     },
     {
@@ -2233,12 +2233,22 @@
     "mix_plan_number",
     "association_name"
   ],
-  "required_notice": "再生成",
+  "required_notice": "納入書（計画）",
   "source_confirmation": {
     "basis": "parent-provided 42-field and vector layout specification",
     "direct_original_pixels_checked_in_cloud": false,
     "geometry_and_font": "estimated; pending original comparison",
-    "certification_text": "GB0407016 retained as source text; official BG0407016 differs; no certification validity assertion"
+    "certification_text": "GB0407016 retained as source text; official BG0407016 differs; no certification validity assertion",
+    "cloud_original_pixels_checked": false,
+    "visible_explanation_pixels_checked": true,
+    "local_explanation_bytes_available": false,
+    "complete_blue_background_available": false,
+    "new_background_library_id": "libfile_dcb9b27af81c8191838002a4136e8621",
+    "new_background_pixels_checked": false,
+    "known_new_background_issues": [
+      "郵便番号470-0163（確認済みの正は470-0162）",
+      "配合種別欄に車体量等の誤字。元の5選択肢との照合が必要"
+    ]
   },
   "excluded_fields": [
     "arrival_time",
@@ -2252,6 +2262,49 @@
   "calculation": {
     "enabled_by_default": false
   },
-  "entry_notice": "再生成として表示します。署名欄と手書き着時刻は空白で出力します。",
-  "settings_notice": "署名・手書き着時刻は設定変更でも入力・出力できません。原票記載認証文字列の保持は認証の正当性を証明するものではありません。"
+  "entry_notice": "納入計画用です。予定値を入力し、各伝票に納入書（計画）を表示します。署名と着時刻は空欄です。背景未準備でも入力・保存・CSVは使えます。",
+  "settings_notice": "背景は未確認の候補も保存できます。郵便番号・5選択肢・青印字の欠け・手書き除外を確認し、誤字の未解決時は正式出力しません。各伝票の納入書（計画）表示を保持します。",
+  "render_mode": "background",
+  "background_revision": 1,
+  "background": {
+    "schema_version": 1,
+    "status": "missing",
+    "kind": "original_blue",
+    "reviewed": false,
+    "missing_reason": "原票の青い固定印字を保持した背景画像が未取得です"
+  },
+  "overlay_fixed_text_ids": [
+    "copy_notice"
+  ],
+  "coordinate_definition": "tomei_taiheiyo.coordinates.json",
+  "background_blank_regions_mm": [
+    [
+      74.4,
+      61.4,
+      17.5,
+      7.8
+    ],
+    [
+      97,
+      61.4,
+      15,
+      7.8
+    ],
+    [
+      33.5,
+      168.6,
+      24.5,
+      7.9
+    ],
+    [
+      92,
+      168.6,
+      26.3,
+      7.9
+    ]
+  ],
+  "document_purpose": "delivery_plan",
+  "plan_revision": 1,
+  "entry_value_label": "納入予定値を入力｜日付 YYYY-MM-DD｜時刻 HH:MM｜未記載は空欄",
+  "quantity_summary_title": "選択した納入予定の集計"
 }

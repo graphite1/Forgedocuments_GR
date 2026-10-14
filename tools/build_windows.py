@@ -35,7 +35,13 @@ def build(output,unsigned=False):
     for row in catalog():
         args+=['--hidden-import',row['module']]
         definition=row.get('template')
-        if definition and definition!='template.json':args+=['--add-data',str(ROOT/definition)+':'+str(Path(definition).parent)]
+        if definition and definition!='template.json':
+            args+=['--add-data',str(ROOT/definition)+':'+str(Path(definition).parent)]
+            metadata=json.loads((ROOT/definition).read_text(encoding='utf-8'))
+            if metadata.get('coordinate_definition'):
+                coordinate_path=(ROOT/definition).parent/metadata['coordinate_definition']
+                if not coordinate_path.resolve().is_relative_to((ROOT/definition).parent.resolve()):raise ValueError('座標定義が帳票フォルダーを超えています')
+                args+=['--add-data',str(coordinate_path)+':'+str(Path(definition).parent)]
     args+=['--hidden-import','reportlab.pdfbase._fontdata_enc_winansi','--hidden-import','reportlab.pdfbase._fontdata_enc_macroman',str(ROOT/'app.py')]
     subprocess.run(args,cwd=ROOT,check=True)
     for name in ['template.json','forms.json','version.json','update_config.json']:(dest/name).write_bytes((ROOT/name).read_bytes())

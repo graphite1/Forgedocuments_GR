@@ -15,11 +15,13 @@ from form_registry import catalog
 from main_app import Home
 from page_layout import placements
 from tomei_screen import App,DEFINITION,EXCLUDED,FIXED,validate_policy
+from background_test_support import synthetic_background
 
 
 class TomeiChecks(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.path=Path(self.temp.name);self.t=core.load_template(DEFINITION)
+        self.t['background']=synthetic_background(self.t)
 
     def tearDown(self):self.temp.cleanup()
 
@@ -29,6 +31,9 @@ class TomeiChecks(unittest.TestCase):
         return d
 
     def app(self):
+        s=core.Store(self.path/'ui',default_template=self.t,form_id=self.t['form_id'],validate_definition=validate_policy)
+        try:s.set_template(self.t)
+        finally:s.close()
         root=tk.Tk();root.withdraw();return App(root,self.path/'ui')
 
     def finish(self,app):app.store.close();app.root.destroy()
@@ -72,7 +77,7 @@ class TomeiChecks(unittest.TestCase):
         with pymupdf.open(good) as a,pymupdf.open(bad) as b:
             self.assertEqual(a[0].get_pixmap(dpi=100).samples,b[0].get_pixmap(dpi=100).samples)
             for value in ('12:34','FORBIDDEN_RECIPIENT_SIGNATURE','FORBIDDEN_SHIPPING_SIGNATURE'):self.assertNotIn(value,b[0].get_text())
-            self.assertEqual(b[0].get_images(),[])
+            self.assertEqual(len(b[0].get_images()),1)
 
     def test_policy_rejects_enabling_excluded_fields_or_hiding_required_notice(self):
         for key in EXCLUDED:
@@ -88,15 +93,18 @@ class TomeiChecks(unittest.TestCase):
     def test_static_blue_input_black_title_and_source_certification_are_visible(self):
         p=self.path/'colors.pdf';core.render_pdf(p,[self.sample()],self.t)
         with pymupdf.open(p) as doc:
-            text=doc[0].get_text();self.assertIn('レディーミクストコンクリート納入書',text)
-            self.assertIn('東名太平洋生コン株式会社',text);self.assertIn('GB0407016',text);self.assertNotIn('BG0407016',text)
-            self.assertIn('再生成',text);self.assertNotIn('FAX',text)
+            text=doc[0].get_text()
+            # Source-only blue typography is never redrawn from template strings.
+            for value in ('レディーミクストコンクリート納入書','東名太平洋生コン株式会社','GB0407016','BG0407016'):
+                self.assertNotIn(value,text)
+            self.assertIn('合成基盤デモ・原票背景未取得',text)
+            self.assertIn('納入書（計画）',text);self.assertNotIn('FAX',text)
             spans=[s for b in doc[0].get_text('dict')['blocks'] if b['type']==0 for line in b['lines'] for s in line['spans']]
             for value in ('TEST_SITE','0012','005.500','TEST_ASSOCIATION'):
                 self.assertEqual(next(s['color'] for s in spans if value in s['text']),0)
-            for value in ('GB0407016','東名太平洋生コン株式会社','呼び強度'):
-                color=next(s['color'] for s in spans if value in s['text']);self.assertNotEqual(color,0)
-                self.assertGreater(color&255,(color>>16)&255)
+            self.assertEqual(len(doc[0].get_images()),1)
+            from background_assets import load_background
+            self.assertIn((75,175,185),list(load_background(self.t).getdata()))
 
     def test_bad_input_or_fixed_colors_are_rejected(self):
         for key in ('issuer','delivery_volume'):
@@ -121,10 +129,10 @@ class TomeiChecks(unittest.TestCase):
         p=self.path/'native.pdf';core.render_pdf(p,[self.sample()],self.t)
         with pymupdf.open(p) as doc:
             page=doc[0];self.assertAlmostEqual(page.rect.width/core.MM,148,places=3);self.assertAlmostEqual(page.rect.height/core.MM,210,places=3)
-            frame=page.get_drawings()[0]['rect']
+            frame=page.get_image_rects(page.get_images()[0][0])[0]
             for actual,expected in ((frame.x0/core.MM,14.4),(frame.y0/core.MM,13.3),(frame.width/core.MM,118.3),(frame.height/core.MM,176.5)):self.assertAlmostEqual(actual,expected,places=3)
             rect=page.search_for('TEST_ASSOCIATION')[0];self.assertGreater(rect.y0,frame.y1);self.assertTrue(page.rect.contains(rect))
-            notice=page.search_for('再生成')[0];self.assertGreater(notice.y0,frame.y1);self.assertTrue(page.rect.contains(notice));self.assertFalse(notice.intersects(rect))
+            notice=page.search_for('納入書（計画）')[0];self.assertGreater(notice.y0,frame.y1);self.assertTrue(page.rect.contains(notice));self.assertFalse(notice.intersects(rect))
 
     def test_four_up_includes_footer_extents_and_ends_with_blank_slots(self):
         t=copy.deepcopy(self.t);t['page_layout'].update(paper='A4',rows=2,columns=2,margin_x_mm=5,margin_y_mm=5,gap_x_mm=3,gap_y_mm=4,scale='fit',align_x='center',align_y='center')
@@ -140,7 +148,7 @@ class TomeiChecks(unittest.TestCase):
                     if b['type']==0:
                         for line in b['lines']:
                             for span in line['spans']:self.assertTrue(page.rect.contains(pymupdf.Rect(span['bbox'])))
-            rects=[d['rect'] for d in doc[1].get_drawings() if d['rect'].width>100 and any(item[0]=='re' for item in d['items'])]
+            rects=doc[1].get_image_rects(doc[1].get_images()[0][0])
             self.assertEqual(len(rects),1)
 
     def test_source_choices_are_blue_unselected_and_black_when_checked(self):
@@ -148,7 +156,7 @@ class TomeiChecks(unittest.TestCase):
         none=self.path/'none.pdf';selected=self.path/'selected.pdf';d=core.blank(self.t);core.render_pdf(none,[d],self.t)
         d['mix_basis']=json.dumps([key]);core.render_pdf(selected,[d],self.t)
         with pymupdf.open(none) as a,pymupdf.open(selected) as b:
-            for option in field['options']:self.assertIn(option['label'],a[0].get_text())
+            for option in field['options']:self.assertNotIn(option['label'],a[0].get_text())
             self.assertNotIn(key,b[0].get_text());self.assertNotEqual(a[0].get_pixmap(dpi=100).samples,b[0].get_pixmap(dpi=100).samples)
             self.assertEqual(len([s for s in b[0].get_drawings() if s['color']==(0,0,0)]),2)
         for value in ('["unknown"]',json.dumps([key,key]),'{"standard_mix":true}'):
@@ -208,7 +216,8 @@ class TomeiChecks(unittest.TestCase):
         try:
             home.open(rows[1]);root.update();screen=home.screens['tomei_taiheiyo']
             self.assertNotIn('company_address',screen.template);self.assertNotIn('エーシートヨアケ',json.dumps(screen.template,ensure_ascii=False))
-            screen.preview_current();self.assertEqual((ac/'records.sqlite3').read_bytes(),before)
+            with self.assertRaisesRegex(ValueError,'背景画像が未準備'):screen.preview_current()
+            self.assertEqual((ac/'records.sqlite3').read_bytes(),before)
         finally:home.close()
 
     def test_wrong_legacy_ac_folder_is_rejected_before_setting_migration(self):
