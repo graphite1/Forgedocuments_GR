@@ -38,6 +38,9 @@ def validate(values, template):
     errors = []
     for f in template['fields']:
         value = values.get(f['id'], '')
+        if f['type']=='layout_only' or f.get('input',True) is False:
+            if value not in ('',None):errors.append(f"{f['label']}: 入力・転記できない欄です")
+            continue
         if not isinstance(value, str):
             errors.append(f"{f['label']}: 文字列として保存してください")
             continue
@@ -61,6 +64,11 @@ def validate(values, template):
                 if f.get('decimals') is not None and max(0,-d.as_tuple().exponent)>f['decimals']:
                     raise ValueError(f"小数 {f['decimals']} 桁以内で入力")
             elif typ=='choice' and value not in f['choices']: raise ValueError('選択肢にない値')
+            elif typ=='multi_choice':
+                selected=json.loads(value)
+                allowed={o['key'] for o in f['options']}
+                if not isinstance(selected,list) or not all(isinstance(k,str) and k in allowed for k in selected) or len(selected)!=len(set(selected)):
+                    raise ValueError('選択肢にない値または重複した選択です')
             elif typ=='image':
                 from PIL import Image
                 Image.open(io.BytesIO(base64.b64decode(value,validate=True))).verify()
@@ -79,15 +87,22 @@ def validate_template(t):
     ids=[f['id'] for f in t['fields']]
     if len(ids)!=len(set(ids)): raise ValueError('項目IDが重複しています')
     validate_definitions(t['fields'],validate)
+    coord_w,coord_h=float(t.get('coordinate_width',1000)),float(t.get('coordinate_height',1300))
+    if not all(math.isfinite(v) and 10<=v<=10000 for v in (coord_w,coord_h)):raise ValueError('帳票座標の範囲が不正です')
+    max_y=coord_h*float(t.get('content_height_mm',h))/h
     for f in t['fields']:
         if f.get('font',28)<=0: raise ValueError('文字サイズは正数で設定')
-        for box in [f['box']]+f.get('parts',[])+list(f.get('choice_marks',{}).values())+([f['mark_bounds']] if 'mark_bounds' in f else []):
+        option_boxes=[box for option in f.get('options',[]) for box in (option['box'],option['label_box'])]
+        for box in [f['box']]+f.get('parts',[])+list(f.get('choice_marks',{}).values())+([f['mark_bounds']] if 'mark_bounds' in f else [])+option_boxes:
             x,y,bw,bh=map(float,box)
-            if x<0 or y<0 or bw<=0 or bh<=0 or x+bw>1000 or y+bh>1300: raise ValueError(f"{f['label']}: 印字領域が外周枠を超えています")
+            if not all(math.isfinite(v) for v in (x,y,bw,bh)) or x<0 or y<0 or bw<=0 or bh<=0 or x+bw>coord_w+1e-7 or y+bh>max_y+1e-7: raise ValueError(f"{f['label']}: 印字領域が出力範囲を超えています")
+        if f['type']=='multi_choice':
+            keys=[o['key'] for o in f['options']]
+            if len(keys)!=len(set(keys)):raise ValueError('選択肢IDが重複しています')
         if f.get('min') is not None and f.get('max') is not None and dec(f['min'])>dec(f['max']): raise ValueError(f"{f['label']}: 下限が上限を超えています")
     for item in t['fixed_texts']:
         x,y,bw,bh=map(float,item['box'])
-        if x<0 or y<0 or bw<=0 or bh<=0 or x+bw>1000 or y+bh>1300: raise ValueError('固定文の印字領域が外周枠を超えています')
+        if not all(math.isfinite(v) for v in (x,y,bw,bh)) or x<0 or y<0 or bw<=0 or bh<=0 or x+bw>coord_w+1e-7 or y+bh>max_y+1e-7: raise ValueError('固定文の印字領域が出力範囲を超えています')
     if float(t.get('original_margin_mm',0.5))<0: raise ValueError('外側余白は0以上で設定')
     if type(t.get('random_print_enabled',False)) is not bool:raise ValueError('ランダム印字はON/OFFで指定')
     for key in ('random_print_x_mm','random_print_y_mm'):
@@ -98,9 +113,10 @@ def validate_template(t):
     return t
 
 class Store:
-    def __init__(self, directory, default_template=None, form_id=None):
+    def __init__(self, directory, default_template=None, form_id=None, validate_definition=None):
         self.default_template=default_template
         self.form_id=form_id
+        self.validate_definition=validate_definition
         if form_id and default_template is None:
             raise ValueError('帳票専用の既定設定を指定してください')
         self.directory=Path(directory)
@@ -123,6 +139,10 @@ class Store:
     def check_form(self,t):
         if self.form_id and t.get('form_id',self.form_id)!=self.form_id:
             raise ValueError('別の帳票の保存先・設定は使用できません')
+        if self.form_id and 'form_id' not in t:
+            expected={f['id'] for f in self.defaults()['fields']};actual={f['id'] for f in t['fields']}
+            if not expected<=actual:raise ValueError('この保存先の項目は選択した帳票に対応していません')
+        if self.validate_definition:self.validate_definition(t)
         return t
 
     def list(self, archived=False):
@@ -134,6 +154,7 @@ class Store:
         return dict(id=rid,data=json.loads(r[0]),revision=r[1],created=r[2],updated=r[3],archived=bool(r[4]))
 
     def save(self,data,template,rid=None,revision=None,reason='新規登録'):
+        self.check_form(template)
         errors=validate(data,template)
         if errors: raise ValueError('\n'.join(errors))
         rid=rid or uuid.uuid4().hex
@@ -158,6 +179,7 @@ class Store:
             self.db.execute('INSERT INTO history(record_id,at,reason,before_json,after_json) VALUES(?,?,?,?,?)',(rid,now(),'保管' if archive else '復帰',json.dumps(old,ensure_ascii=False),json.dumps(self.get(rid),ensure_ascii=False)))
 
     def import_rows(self,rows,template,reason):
+        self.check_form(template)
         for data in rows:
             errors=validate(data,template)
             if errors:raise ValueError('\n'.join(errors))
@@ -236,13 +258,13 @@ class Store:
         return [self.get(r['id']) for r,_ in updates]
 
 def csv_export(path,records,t):
-    fields=[f for f in t['fields'] if f['type']!='image']
+    fields=[f for f in t['fields'] if f['type'] not in ('image','layout_only') and f.get('input',True)]
     with open(path,'w',encoding='utf-8-sig',newline='') as out:
         writer=csv.DictWriter(out,fieldnames=[f['label'] for f in fields]); writer.writeheader()
         for r in records: writer.writerow({f['label']:r['data'].get(f['id'],'') for f in fields})
 
 def csv_read(path,t):
-    fields={f['label']:f for f in t['fields'] if f['type']!='image'}
+    fields={f['label']:f for f in t['fields'] if f['type'] not in ('image','layout_only') and f.get('input',True)}
     with open(path,encoding='utf-8-sig',newline='') as src:
         reader=csv.DictReader(src)
         headers=reader.fieldnames or []
@@ -280,6 +302,11 @@ def font_name(t):
             return name
     raise ValueError('日本語フォントが見つかりません。帳票設定でTTFまたはTTCを指定してください')
 
+def styled_font(t,style,default):
+    if style!='serif':return default
+    candidate=Path(t.get('serif_font_path') or Path(os.environ.get('WINDIR','C:/Windows'))/'Fonts/msmincho.ttc')
+    return font_name(dict(t,font_path=str(candidate))) if candidate.is_file() else default
+
 def wrap_text(value,font,size,width):
     from reportlab.pdfbase import pdfmetrics
     lines=[]
@@ -300,6 +327,20 @@ def fit_text(value,font,size,w,h,wrap=False,min_font=14):
         size-=0.5
     raise ValueError('文字が欄内に収まりません。文字数を減らすか、設定の欄・文字サイズを調整してください')
 
+def print_content(values,t):
+    data={}
+    for f in t['fields']:
+        if f['type']=='layout_only' or not f.get('input',True) or not f.get('print',True):continue
+        if f.get('suppressed_by') and values.get(f['suppressed_by']):continue
+        value=values.get(f['id'],'')
+        if f['type']=='multi_choice':
+            try:
+                selected=json.loads(value) if value else []
+                if isinstance(selected,list) and all(isinstance(key,str) for key in selected):value=sorted(selected)
+            except (ValueError,TypeError):pass
+        data[f['id']]=value
+    return json.dumps(data,ensure_ascii=False,sort_keys=True,separators=(',',':'))
+
 def print_offset(values,t,occurrence=0):
     """Stable random-looking offset in form coordinates, independent of row IDs.
 
@@ -307,11 +348,11 @@ def print_offset(values,t,occurrence=0):
     identical pages get separate offsets, reproducible for the same page set.
     """
     if not t.get('random_print_enabled',False):return 0.0,0.0
-    payload=json.dumps([values,occurrence],ensure_ascii=False,sort_keys=True,separators=(',',':')).encode('utf-8')
+    payload=json.dumps([print_content(values,t),occurrence],ensure_ascii=False,separators=(',',':')).encode('utf-8')
     digest=hashlib.sha256(payload).digest()
     unit=lambda start: int.from_bytes(digest[start:start+8],'big')/(2**64-1)*2-1
-    return (unit(0)*float(t.get('random_print_x_mm',.3))*1000/float(t['width_mm']),
-            unit(8)*float(t.get('random_print_y_mm',.3))*1300/float(t['height_mm']))
+    return (unit(0)*float(t.get('random_print_x_mm',.3))*float(t.get('coordinate_width',1000))/float(t['width_mm']),
+            unit(8)*float(t.get('random_print_y_mm',.3))*float(t.get('coordinate_height',1300))/float(t['height_mm']))
 
 def render_pdf(path,records,t,validate_records=True):
     from reportlab.pdfgen import canvas
@@ -319,9 +360,11 @@ def render_pdf(path,records,t,validate_records=True):
     validate_template(t)
     if not records: raise ValueError('出力対象がありません')
     font=font_name(t)
+    base_font=font;style_fonts={}
     impact_cache={}
     occurrences={}
     fw,fh=float(t['width_mm'])*MM,float(t['height_mm'])*MM
+    coord_w,coord_h=float(t.get('coordinate_width',1000)),float(t.get('coordinate_height',1300))
     page,slots=placements(t)
     destination=Path(path); temp=destination.with_name(destination.name+'.'+uuid.uuid4().hex+'.tmp')
     try:
@@ -330,20 +373,22 @@ def render_pdf(path,records,t,validate_records=True):
         for index,r in enumerate(records):
             if index and index%len(slots)==0:c.showPage()
             values=r.get('data',r)
-            content=json.dumps(values,ensure_ascii=False,sort_keys=True)
+            content=print_content(values,t)
             occurrence=occurrences.get(content,0);occurrences[content]=occurrence+1
             shift_x,shift_y=print_offset(values,t,occurrence)
             errs=validate(values,t) if validate_records else []
             if errs: raise ValueError('\n'.join(errs))
             ox,oy,scale=slots[index%len(slots)]
-            c.saveState(); c.translate(ox,oy+fh*scale); c.scale(fw/1000*scale,-fh/1300*scale)
+            c.saveState(); c.translate(ox,oy+fh*scale); c.scale(fw/coord_w*scale,-fh/coord_h*scale)
             c.setStrokeColorRGB(*t['line_color']); c.setFillColorRGB(*t['line_color']); c.setLineWidth(t['line_width'])
-            c.rect(0,0,1000,1300,stroke=1,fill=0)
+            c.rect(0,0,coord_w,coord_h,stroke=1,fill=0)
             for line in t['lines']:
                 c.setDash(*line.get('dash',[])); c.line(*line['points'])
             c.setDash()
-            def text(value,box,size=28,align='left',wrap=False,color=None,min_font=14):
+            def text(value,box,size=28,align='left',wrap=False,color=None,min_font=14,is_input=None,font_override=None):
                 if not value: return
+                font=font_override or base_font
+                if is_input is None:is_input=color is not None
                 x,y,w,h=box
                 try: size,lines=fit_text(str(value),font,float(size),w,h,wrap,min_font)
                 except ValueError as e: raise ValueError(f'{str(value)[:30]}: {e}')
@@ -355,7 +400,7 @@ def render_pdf(path,records,t,validate_records=True):
                     if align=='center': tx+=(w-width)/2
                     if align=='right': tx+=w-width
                     top=y+(h-len(lines)*size*1.18)/2+i*size*1.18
-                    if color is not None:
+                    if is_input:
                         tx=max(x,min(x+w-width,tx+shift_x))
                         # Shift all lines together, keeping their full line boxes
                         # inside the original field. Do not move the ruled form.
@@ -363,7 +408,7 @@ def render_pdf(path,records,t,validate_records=True):
                         delta=max(y-base,min(y+h-len(lines)*size*1.18-base,shift_y))
                         top+=delta
                     c.saveState(); c.translate(tx,top+size*.91); c.scale(1,-1)
-                    if color is not None and t.get('input_print_style','smooth')=='impact':
+                    if is_input and t.get('input_print_style','smooth')=='impact':
                         # A regular pin grid makes the input look like impact-printer ink.
                         # Render the glyph once to obtain coverage, then draw vector dots.
                         import pymupdf
@@ -395,20 +440,34 @@ def render_pdf(path,records,t,validate_records=True):
                         for px,py in points:c.circle(px,py,radius,stroke=0,fill=1)
                     else:
                         c.setFont(font,size)
-                        if color is not None:
+                        if is_input and t.get('input_print_style','smooth')!='plain':
                             c.setStrokeColorRGB(*color);c.setLineWidth(float(t.get('input_stroke',.5)))
                             obj=c.beginText(0,0);obj.setFont(font,size);obj.setTextRenderMode(2);obj.textOut(s);c.drawText(obj)
                         else:c.drawString(0,0,s)
                     c.restoreState()
             for item in t['fixed_texts']:
-                if item.get('print',True): text(t.get(item['value_key'],'') if 'value_key' in item else item['text'],item['box'],item.get('font',28),item.get('align','left'),item.get('wrap',False),min_font=item.get('min_font',14))
+                style=item.get('font_style')
+                if style not in style_fonts:style_fonts[style]=styled_font(t,style,base_font)
+                if item.get('print',True): text(t.get(item['value_key'],'') if 'value_key' in item else item['text'],item['box'],item.get('font',28),item.get('align','left'),item.get('wrap',False),color=item.get('color'),min_font=item.get('min_font',14),is_input=False,font_override=style_fonts[style])
             for f in t['fields']:
+                if f['type']=='layout_only':continue
                 if not f.get('print',True): continue
-                value=values.get(f['id'],'')
+                is_input=f.get('input',True)
+                value=values.get(f['id'],'') if is_input else f.get('fixed_value','')
+                if f['type']=='multi_choice':
+                    selected=json.loads(value) if value else []
+                    for option in f['options']:
+                        x,y,w,h=option['box'];c.setStrokeColorRGB(*t['line_color']);c.setLineWidth(t['line_width']);c.rect(x,y,w,h,stroke=1,fill=0)
+                        text(option['label'],option['label_box'],option.get('font',16),min_font=option.get('min_font',10),is_input=False)
+                        if option['key'] in selected:
+                            c.setStrokeColorRGB(*t['input_color']);c.setLineWidth(t.get('input_stroke',.5))
+                            dx=max(-w*.2,min(w*.2,shift_x));dy=max(-h*.2,min(h*.2,shift_y))
+                            c.line(x+w*.2+dx,y+h*.2+dy,x+w*.8+dx,y+h*.8+dy);c.line(x+w*.2+dx,y+h*.8+dy,x+w*.8+dx,y+h*.2+dy)
+                    continue
                 if not value: continue
                 if value in f.get('choice_marks',{}):
                     c.setStrokeColorRGB(*t['input_color']);c.setLineWidth(1.5)
-                    x,y,w,h=f['choice_marks'][value];bx,by,bw,bh=f.get('mark_bounds',[0,0,1000,1300])
+                    x,y,w,h=f['choice_marks'][value];bx,by,bw,bh=f.get('mark_bounds',[0,0,coord_w,coord_h])
                     dx=max(bx-x,min(bx+bw-x-w,shift_x));dy=max(by-y,min(by+bh-y-h,shift_y))
                     c.ellipse(x+dx,y+dy,x+w+dx,y+h+dy,stroke=1,fill=0)
                     c.setStrokeColorRGB(*t['line_color']);c.setLineWidth(t['line_width'])
@@ -425,7 +484,7 @@ def render_pdf(path,records,t,validate_records=True):
                     parts=value.split('-' if f['type']=='date' else ':')
                     for part,box in zip(parts,f['parts']): text(part,box,f.get('font',28),f.get('align','center'),color=t['input_color'],min_font=f.get('min_font',14))
                 else:
-                    text(value,f['box'],f.get('font',28),f.get('align','left'),f.get('wrap',False),t['input_color'],f.get('min_font',14))
+                    text(value,f['box'],f.get('font',28),f.get('align','left'),f.get('wrap',False),f.get('color',t['input_color'] if is_input else t['line_color']),f.get('min_font',14),is_input=is_input)
             c.restoreState()
         c.showPage();c.save();os.replace(temp,destination)
     finally: temp.unlink(missing_ok=True)

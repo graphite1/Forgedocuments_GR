@@ -9,17 +9,17 @@ class LayoutSettings(ttk.LabelFrame):
     def __init__(self,parent,template):
         super().__init__(parent,text='用紙・面付け（行＝縦、列＝横）',padding=8)
         self.vars={}
-        self.maps={'paper':{'原本寸法':'original','任意サイズ':'custom'},'orientation':{'縦':'portrait','横':'landscape'},'scale':{'原寸を維持':'actual','枠に合わせて縮小':'fit'}}
+        self.maps={'paper':{'原本寸法':'original','任意サイズ':'custom'},'orientation':{'縦':'portrait','横':'landscape'},'scale':{'原寸を維持':'actual','枠に合わせて縮小':'fit'},'align_x':{'中央':'center','左':'start'},'align_y':{'中央':'center','上':'start'}}
         fields=[('paper','用紙',list(PAPERS)+['原本寸法','任意サイズ']),('orientation','向き',['縦','横']),('scale','倍率',['原寸を維持','枠に合わせて縮小']),
                 ('rows','行数',None),('columns','列数',None),('margin_x_mm','左右余白 mm',None),('margin_y_mm','上下余白 mm',None),
-                ('gap_x_mm','横の間隔 mm',None),('gap_y_mm','縦の間隔 mm',None),('custom_width_mm','任意用紙の幅 mm',None),('custom_height_mm','任意用紙の高さ mm',None)]
+                ('gap_x_mm','横の間隔 mm',None),('gap_y_mm','縦の間隔 mm',None),('custom_width_mm','任意用紙の幅 mm',None),('custom_height_mm','任意用紙の高さ mm',None),('align_x','横の配置',['中央','左']),('align_y','縦の配置',['中央','上'])]
         for i,(key,label,choices) in enumerate(fields):
             row,col=divmod(i,3);col*=2
             ttk.Label(self,text=label).grid(row=row,column=col,sticky='w',padx=4,pady=3)
             v=tk.StringVar();self.vars[key]=v
             w=ttk.Combobox(self,textvariable=v,values=choices,state='readonly',width=12) if choices else ttk.Entry(self,textvariable=v,width=12)
             w.grid(row=row,column=col+1,sticky='ew',padx=4,pady=3)
-        ttk.Label(self,text='左上から右へ、次に下へ配置します。原寸で入らない場合は設定を変更してください。').grid(row=4,column=0,columnspan=6,sticky='w')
+        ttk.Label(self,text='左上から右へ、次に下へ配置します。原寸で入らない場合は設定を変更してください。').grid(row=5,column=0,columnspan=6,sticky='w')
         self.load(template)
 
     def load(self,template):
@@ -31,7 +31,7 @@ class LayoutSettings(ttk.LabelFrame):
     def apply(self,template):
         cfg={}
         for k,v in self.vars.items():
-            cfg[k]=int(v.get()) if k in ('rows','columns') else self.maps[k].get(v.get(),v.get()) if k in ('paper','orientation','scale') else float(v.get())
+            cfg[k]=int(v.get()) if k in ('rows','columns') else self.maps[k].get(v.get(),v.get()) if k in self.maps else float(v.get())
         template['page_layout']=cfg
 
 
@@ -51,7 +51,7 @@ class FieldDefaultsSettings(ttk.LabelFrame):
         self.columnconfigure(1,weight=1);self.load(template)
 
     def load(self,template):
-        self.fields={f['id']:deepcopy(f) for f in template['fields'] if f['type']!='image'}
+        self.fields={f['id']:deepcopy(f) for f in template['fields'] if f['type'] not in ('image','layout_only','multi_choice') and f.get('input',True)}
         self.labels={f"{f['label']} [{f['id']}]":f['id'] for f in self.fields.values()}
         self.selector['values']=list(self.labels);self.pending={};self.current=None
         if self.labels:self.selected.set(next(iter(self.labels)));self.select()

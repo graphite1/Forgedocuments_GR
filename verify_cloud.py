@@ -16,6 +16,7 @@ from verify import Verification
 from verify_platform import PlatformChecks
 from verify_regressions import Regressions
 from verify_layout_inputs import LayoutAndInputs
+from verify_tomei import TomeiChecks
 
 
 class KeyFreePlatformChecks(PlatformChecks):
@@ -34,7 +35,7 @@ class KeyFreePlatformChecks(PlatformChecks):
 
 def suite():
     loader=unittest.defaultTestLoader
-    return unittest.TestSuite(loader.loadTestsFromTestCase(c) for c in (Verification,KeyFreePlatformChecks,Regressions,LayoutAndInputs))
+    return unittest.TestSuite(loader.loadTestsFromTestCase(c) for c in (Verification,KeyFreePlatformChecks,Regressions,LayoutAndInputs,TomeiChecks))
 
 
 if __name__=='__main__':
@@ -44,8 +45,9 @@ if __name__=='__main__':
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.cidfonts import UnicodeCIDFont
         pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))
+        pdfmetrics.registerFont(UnicodeCIDFont('HeiseiMin-W3'))
         print('Cloud checks: Japanese CID substitute font; Windows MS Gothic appearance remains unverified.',flush=True)
-        with patch('core.font_name',return_value='HeiseiKakuGo-W5'):
+        with patch('core.font_name',return_value='HeiseiKakuGo-W5'),patch('core.styled_font',side_effect=lambda t,style,default:'HeiseiMin-W3' if style=='serif' else default):
             result=unittest.TextTestRunner(verbosity=2).run(suite())
     else:result=unittest.TextTestRunner(verbosity=2).run(suite())
     raise SystemExit(not result.wasSuccessful())

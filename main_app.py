@@ -92,12 +92,16 @@ def diagnostic():
     validate_template(load_template());catalog();updates.config()
     root=tk.Tk();root.withdraw();root.update();root.destroy()
     # Exercise packaged dynamic font imports, native PDF rendering and preview.
-    from ac_screen import App
     from core import blank
     with tempfile.TemporaryDirectory(prefix='forgedocuments_diagnostic_') as directory:
-        root=tk.Tk();root.withdraw();screen=App(root,directory)
-        screen.set_values(blank(screen.template));screen.preview_current();root.update()
-        screen.store.close();root.destroy()
+        for row in catalog():
+            root=tk.Tk();root.withdraw();screen=None
+            try:
+                screen=open_screen(row,root,Path(directory)/row['id'])
+                screen.set_values(blank(screen.template));screen.preview_current();root.update()
+            finally:
+                if screen:screen.store.close()
+                root.destroy()
 
 _instance_handle=None
 
