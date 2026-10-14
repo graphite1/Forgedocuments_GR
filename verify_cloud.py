@@ -19,6 +19,7 @@ from verify_layout_inputs import LayoutAndInputs
 from verify_tomei import TomeiChecks
 from verify_background import BackgroundChecks
 from verify_fixed_footer import FixedFooterChecks
+from verify_public_background import PublicBackgroundChecks
 
 
 class KeyFreePlatformChecks(PlatformChecks):
@@ -37,7 +38,7 @@ class KeyFreePlatformChecks(PlatformChecks):
 
 def suite():
     loader=unittest.defaultTestLoader
-    return unittest.TestSuite(loader.loadTestsFromTestCase(c) for c in (Verification,KeyFreePlatformChecks,Regressions,LayoutAndInputs,TomeiChecks,BackgroundChecks,FixedFooterChecks))
+    return unittest.TestSuite(loader.loadTestsFromTestCase(c) for c in (Verification,KeyFreePlatformChecks,Regressions,LayoutAndInputs,TomeiChecks,BackgroundChecks,FixedFooterChecks,PublicBackgroundChecks))
 
 
 if __name__=='__main__':

@@ -216,7 +216,8 @@ class TomeiChecks(unittest.TestCase):
         try:
             home.open(rows[1]);root.update();screen=home.screens['tomei_taiheiyo']
             self.assertNotIn('company_address',screen.template);self.assertNotIn('エーシートヨアケ',json.dumps(screen.template,ensure_ascii=False))
-            with self.assertRaisesRegex(ValueError,'背景画像が未準備'):screen.preview_current()
+            self.assertEqual(screen.template['background']['status'],'ready')
+            screen.preview_current();self.assertIn('納入書（計画）',screen.preview_view.doc[0].get_text())
             self.assertEqual((ac/'records.sqlite3').read_bytes(),before)
         finally:home.close()
 

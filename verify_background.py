@@ -25,8 +25,10 @@ class BackgroundChecks(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.path=Path(self.temp.name)
         self.t=core.load_template(DEFINITION)
+        # Exercise legacy missing/draft behavior independently of the new bundle.
+        self.bundle_patch=patch('tomei_preset.bundled_source',return_value=None);self.bundle_patch.start()
 
-    def tearDown(self):self.temp.cleanup()
+    def tearDown(self):self.bundle_patch.stop();self.temp.cleanup()
 
     def ready(self):
         t=copy.deepcopy(self.t);t['background']=synthetic_background(t);return t

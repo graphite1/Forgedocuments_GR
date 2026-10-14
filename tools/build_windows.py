@@ -22,6 +22,13 @@ def prepare_key():
     if cfg['key_id']!=key_id or cfg['public_key']!=public:raise RuntimeError('既存署名鍵とアプリの公開鍵が一致しません。公開鍵は変更しません')
     return key,cfg
 
+
+def public_asset_args():
+    from tomei_preset import public_bundle_files
+    args=[]
+    for source in public_bundle_files():args+=['--add-data',str(source)+':assets']
+    return args
+
 def build(output,unsigned=False,private_background=None):
     if sys.platform!='win32':raise RuntimeError('Windows EXEはWindows環境でビルド・診断してください。Linux製の実行ファイルは配布しません')
     if unsigned:key=None;cfg=json.loads((ROOT/'update_config.json').read_text(encoding='utf-8'))
@@ -30,6 +37,7 @@ def build(output,unsigned=False,private_background=None):
     v=json.loads((ROOT/'version.json').read_text(encoding='utf-8'))
     dest=output/f"Forgedocuments_GR-{v['version']}-windows-x64";dest.mkdir(exist_ok=False)
     args=[sys.executable,'-m','PyInstaller','--noconfirm','--clean','--onefile','--windowed','--name','Forgedocuments GR','--distpath',str(dest),'--workpath',str(output/'build'),'--specpath',str(output/'spec')]
+    args+=public_asset_args()
     if private_background:
         from tomei_preset import recognize
         source=Path(private_background).resolve()

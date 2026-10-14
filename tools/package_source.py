@@ -19,6 +19,8 @@ def package(output):
     subprocess.run(['git','archive','--format=zip','--prefix=Forgedocuments_GR/','--output',str(archive),sha],cwd=ROOT,check=True)
     manifest={'artifact_type':'source_archive','source_commit':sha,'version':version['version'],'sequence':version['sequence'],
               'sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'size_bytes':archive.stat().st_size,'windows_exe_built':False,'signed':False}
+    assets=subprocess.check_output(['git','ls-tree','-r','--name-only',sha,'--','assets'],cwd=ROOT,text=True).splitlines()
+    manifest['bundled_public_assets']=[{'path':name,'sha256':hashlib.sha256(subprocess.check_output(['git','show',sha+':'+name],cwd=ROOT)).hexdigest()} for name in assets]
     (output/f"Forgedocuments_GR-{version['version']}-source.manifest.json").write_text(json.dumps(manifest,indent=2)+'\n')
     print(json.dumps(dict(manifest,archive=str(archive))))
 

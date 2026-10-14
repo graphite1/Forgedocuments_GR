@@ -85,7 +85,11 @@ def validate_policy(t):
 class App(DefinitionScreen):
     def __init__(self,root,directory):
         from tomei_preset import with_bundled_preset
+        new_destination=not (Path(directory)/'records.sqlite3').exists() and not (Path(directory)/'template.json').exists()
         base=load_template(DEFINITION)
         t=with_bundled_preset(base);validate_policy(t)
         from tomei_defaults import migrate_background
         super().__init__(root,directory,t,validate_policy,lambda value:migrate_background(value,base))
+        if new_destination and self.template['background']['status']=='ready':
+            self.preview_current()
+            self.notebook.select(self.entrytab)
