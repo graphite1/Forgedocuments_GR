@@ -22,6 +22,7 @@ from verify_fixed_footer import FixedFooterChecks
 from verify_public_background import PublicBackgroundChecks
 from verify_input_print import InputPrintChecks
 from verify_transparency import TransparencyChecks
+from verify_sample_font import FontRunChecks,SampleFontChecks
 
 
 class KeyFreePlatformChecks(PlatformChecks):
@@ -40,7 +41,7 @@ class KeyFreePlatformChecks(PlatformChecks):
 
 def suite():
     loader=unittest.defaultTestLoader
-    return unittest.TestSuite(loader.loadTestsFromTestCase(c) for c in (Verification,KeyFreePlatformChecks,Regressions,LayoutAndInputs,TomeiChecks,BackgroundChecks,FixedFooterChecks,PublicBackgroundChecks,InputPrintChecks,TransparencyChecks))
+    return unittest.TestSuite(loader.loadTestsFromTestCase(c) for c in (Verification,KeyFreePlatformChecks,Regressions,LayoutAndInputs,TomeiChecks,BackgroundChecks,FixedFooterChecks,PublicBackgroundChecks,InputPrintChecks,TransparencyChecks,FontRunChecks,SampleFontChecks))
 
 
 if __name__=='__main__':

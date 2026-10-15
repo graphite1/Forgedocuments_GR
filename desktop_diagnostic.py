@@ -12,6 +12,59 @@ import core
 from form_registry import catalog, open_screen
 
 
+def sample_font_check(screen,root,directory,result):
+    import tomei_print_font as sample
+    asset=sample.validated_file()
+    result['sample_font_bundled']=asset is not None
+    if asset is None:return
+    values=core.blank(screen.template)
+    values.update(recipient='検証用宛名 A-2030B',vehicle_number='B-2030A',
+                  delivery_volume='-',delivery_date='-',departure_time='-',
+                  remarks='確認用サンプル 日本語 ABC 0123456789.-B')
+    # Create a separate synthetic record instead of asking to overwrite the
+    # earlier diagnostic record; unattended diagnostics must never show dialogs.
+    screen.current=None
+    screen.set_values(values);screen.save()
+    baseline=copy.deepcopy(screen.template)
+    baseline.pop('input_font_profile',None)
+    core.render_pdf(directory/'sample-standard.pdf',[values],baseline)
+    screen.input_print_settings.font.set(sample.LABEL);screen.save_settings()
+    assert screen.template['input_font_profile']==sample.PROFILE
+    for _ in range(3):screen.preview_current();root.update()
+    path=directory/'sample-font.pdf'
+    core.render_pdf(path,[values],screen.template)
+    with pymupdf.open(path) as doc:
+        page=doc[0]
+        assert page.get_pixmap().samples==screen.preview_view.doc[0].get_pixmap().samples
+        text=page.get_text().replace(' ','').replace('\n','')
+        assert '検証用宛名A-2030B殿' in text and 'B-2030A' in text
+        spans=[s for b in page.get_text('dict')['blocks'] if b['type']==0 for l in b['lines'] for s in l['spans']]
+        dedicated=[s for s in spans if 'TomeiSample' in s['font']]
+        assert dedicated and all(set(s['text'].replace(' ',''))<=sample.SUPPORTED for s in dedicated)
+        assert any('日本語' in s['text'] and 'TomeiSample' not in s['font'] for s in spans)
+        assert all(s['color']==0x595959 for s in spans if '検証用宛名' in s['text'] or '殿' in s['text'])
+        page.get_pixmap(dpi=200,alpha=False).save(directory/'sample-font.png')
+        result['pdf_input_fonts']=sorted(set(s['font'] for s in spans))
+    multi=copy.deepcopy(screen.template)
+    multi['page_layout'].update(paper='A4',rows=2,columns=2,scale='fit')
+    core.render_pdf(directory/'sample-font-four-up.pdf',[values]*5,multi)
+    with pymupdf.open(directory/'sample-font-four-up.pdf') as doc:
+        assert [len(p.search_for('納入書（計画）')) for p in doc]==[4,1]
+        for page in doc:
+            images=sorted(page.get_image_rects(page.get_images()[0][0]),key=lambda r:(r.y0,r.x0))
+            notices=sorted(page.search_for('納入書（計画）'),key=lambda r:(r.y0,r.x0))
+            assert all(n.y0>i.y1 and page.rect.contains(n) for n,i in zip(notices,images))
+        doc[0].get_pixmap(dpi=160,alpha=False).save(directory/'sample-font-four-up.png')
+    opaque=dict(screen.template,input_density=1,input_transparency=0)
+    core.render_pdf(directory/'sample-font-opaque.pdf',[values],opaque)
+    core.render_pdf(directory/'sample-standard-opaque.pdf',[values],dict(baseline,input_density=1,input_transparency=0))
+    result.update(sample_font_sha256=hashlib.sha256(asset.read_bytes()).hexdigest(),
+                  sample_record_id=screen.current['id'],
+                  sample_font_previews=3,sample_font_preview_pdf_pixel_difference=0,
+                  sample_font_four_up=True,sample_font_profile=sample.PROFILE,
+                  sample_supported='0123456789.-B',mixed_text_preserved=True)
+
+
 def run(destination=None):
     if destination is None:
         with tempfile.TemporaryDirectory(prefix='forgedocuments_diagnostic_') as directory:
@@ -104,6 +157,7 @@ def run(destination=None):
                     assert screen.store.get(record['id'])==record
                     result.update(saved_transparency=.3,transparency_previews=3,
                                   transparency_preview_pdf_pixel_difference=0,transparency_four_up=True)
+                    sample_font_check(screen,root,directory,result)
                 evidence['forms'][row['id']]=result
             finally:
                 if screen:screen.store.close()
@@ -118,6 +172,14 @@ def run(destination=None):
                     screen.set_values(screen.store.list()[0]['data'])
                     result['density_and_hyphens_survive_reopen']=True
                     result['transparency_survives_reopen']=True
+                    if result.get('sample_font_bundled'):
+                        import tomei_print_font as sample
+                        assert screen.template['input_font_profile']==sample.PROFILE
+                        assert screen.input_print_settings.font.get()==sample.LABEL
+                        saved=screen.store.get(result['sample_record_id'])['data']
+                        assert saved['vehicle_number']=='B-2030A'
+                        screen.set_values(saved)
+                        result['sample_font_survives_reopen']=True
                 screen.preview_current();root.update()
                 assert screen.preview_view.doc is not None
                 result['close_and_reopen_preview']=True

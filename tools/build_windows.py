@@ -29,8 +29,9 @@ def public_asset_args():
     for source in public_bundle_files():args+=['--add-data',str(source)+':assets']
     return args
 
-def build(output,unsigned=False,private_background=None):
+def build(output,unsigned=False,private_background=None,sample_print_font=None):
     if sys.platform!='win32':raise RuntimeError('Windows EXEはWindows環境でビルド・診断してください。Linux製の実行ファイルは配布しません')
+    if sample_print_font and not unsigned:raise ValueError('Sample-derived font is limited to unsigned private confirmation builds')
     if unsigned:key=None;cfg=json.loads((ROOT/'update_config.json').read_text(encoding='utf-8'))
     else:key,cfg=prepare_key()
     output=Path(output).resolve();output.mkdir(parents=True,exist_ok=True)
@@ -38,6 +39,11 @@ def build(output,unsigned=False,private_background=None):
     dest=output/f"Forgedocuments_GR-{v['version']}-windows-x64";dest.mkdir(exist_ok=False)
     args=[sys.executable,'-m','PyInstaller','--noconfirm','--clean','--onefile','--windowed','--name','Forgedocuments GR','--distpath',str(dest),'--workpath',str(output/'build'),'--specpath',str(output/'spec')]
     args+=public_asset_args()
+    if sample_print_font:
+        from tomei_print_font import validated_file,FILENAME
+        source=validated_file(Path(sample_print_font).resolve())
+        if source is None or source.name!=FILENAME:raise ValueError('Expected the validated private print-font asset')
+        args+=['--add-data',str(source)+':private-assets']
     if private_background:
         from tomei_preset import recognize
         source=Path(private_background).resolve()
@@ -65,6 +71,10 @@ def build(output,unsigned=False,private_background=None):
     for name in ['template.json','forms.json','version.json','update_config.json']:(dest/name).write_bytes((ROOT/name).read_bytes())
     (dest/'README.txt').write_text('Forgedocuments GR\n\n「Forgedocuments GR.exe」を開き、エーシー帳票を選択してください。\nPythonやbatの操作は不要です。\n右ドラッグでプレビュー移動、Ctrl＋ホイールで拡大・縮小。\n会社別のtemplate.jsonはエーシー帳票の帳票設定から取り込んでください。\n入力データは選択した保存先に置かれ、更新で上書きされません。\nアプリの更新からGR Release Hubの更新を取得できます。\n実機プリンターでの印刷は未検証。外周枠寸法は暫定値です。\n',encoding='utf-8-sig')
     files={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in dest.iterdir() if p.is_file()}
+    if sample_print_font:
+        with (dest/'README.txt').open('a',encoding='utf-8-sig') as note:
+            note.write('\nPRIVATE CONFIRMATION BUILD: sample-derived print font bundled for this user only. Do not publish this EXE or ZIP. No Windows font installation required.\n')
+        files['README.txt']=hashlib.sha256((dest/'README.txt').read_bytes()).hexdigest()
     (dest/'release_files.json').write_text(json.dumps(files,ensure_ascii=False,sort_keys=True,indent=2),encoding='utf-8')
     archive=output/f"Forgedocuments_GR-{v['version']}-windows-x64.zip"
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
@@ -80,6 +90,7 @@ def build(output,unsigned=False,private_background=None):
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--prepare-key',action='store_true',help='既存鍵と公開鍵の一致を確認（鍵の新規作成はしない）');parser.add_argument('--unsigned',action='store_true',help='Windowsビルドのみ。署名鍵を扱わず、公開不可の未署名候補を作成');parser.add_argument('--output',default=str(ROOT.parent/'release'))
     parser.add_argument('--private-background',type=Path,help='本人用の非公開ビルドだけに修正背景を同梱。公開資産へアップロードしない')
+    parser.add_argument('--sample-print-font',type=Path,help='Private confirmation only: bundle the validated sample-derived TTF; never publish this build')
     a=parser.parse_args()
     if a.prepare_key:prepare_key();print('Existing signing key matches the unchanged public key')
-    else:build(a.output,unsigned=a.unsigned,private_background=a.private_background)
+    else:build(a.output,unsigned=a.unsigned,private_background=a.private_background,sample_print_font=a.sample_print_font)

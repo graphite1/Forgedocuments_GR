@@ -233,7 +233,8 @@ class TomeiChecks(unittest.TestCase):
 
     def test_all_registered_forms_diagnostic(self):
         from main_app import diagnostic
-        diagnostic()
+        with patch('tkinter.simpledialog.askstring',side_effect=AssertionError('Unattended diagnostic must not request edit reasons')):
+            diagnostic()
 
 
 if __name__=='__main__':unittest.main(verbosity=2)

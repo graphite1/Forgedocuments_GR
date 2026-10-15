@@ -16,6 +16,11 @@ class InputPrintSettings(ttk.LabelFrame):
             path=Path(os.environ.get('WINDIR','C:/Windows'))/'Fonts'/name
             if path.is_file():self.fonts[label]=str(path)
         self.font=tk.StringVar();self.style=tk.StringVar()
+        from tomei_print_font import PROFILE,LABEL,validated_file
+        self.sample_profile=PROFILE
+        if template.get('form_id')=='tomei_taiheiyo' and (validated_file() or template.get('input_font_profile')==PROFILE):
+            label=LABEL if validated_file() else LABEL+'（未同梱）'
+            self.fonts[label]='@'+PROFILE
         ttk.Label(self,text='入力の書体').grid(row=0,column=0,sticky='w')
         self.font_selector=ttk.Combobox(self,textvariable=self.font,state='readonly',width=25)
         self.font_selector.grid(row=0,column=1,sticky='w')
@@ -31,17 +36,25 @@ class InputPrintSettings(ttk.LabelFrame):
             v=tk.StringVar();self.vars[key]=v;ttk.Entry(self,textvariable=v,width=10).grid(row=row,column=col+1,sticky='w')
         ttk.Label(self,text='透過度：0%=不透明、100%=透明。文字色の濃さはグレー色の調整です。\n字間・線の太さは文字サイズに対する割合です。背景・固定文字は変えません。').grid(row=4,column=0,columnspan=4,sticky='w')
         self.load(template)
+        if '@'+self.sample_profile in self.fonts.values():
+            ttk.Label(self,text='専用書体は数字・小数点・ハイフン・Bに適用し、他の文字は標準書体で印字します。').grid(row=5,column=0,columnspan=4,sticky='w')
 
     def load(self,template):
         path=template.get('input_font_path','')
         if path not in self.fonts.values():self.fonts['現在の指定']=path
         self.font_selector['values']=list(self.fonts)
-        self.font.set(next(label for label,value in self.fonts.items() if value==path))
+        selected='@'+self.sample_profile if template.get('form_id')=='tomei_taiheiyo' and template.get('input_font_profile')==self.sample_profile else path
+        self.font.set(next(label for label,value in self.fonts.items() if value==selected))
         self.style.set(next((label for label,value in self.styles.items() if value==template.get('input_print_style','plain')),'通常'))
         for key,v in self.vars.items():v.set(f"{float(template.get(key,self.defaults[key]))*100:g}")
 
     def apply(self,template):
-        template['input_font_path']=self.fonts[self.font.get()]
+        selected=self.fonts[self.font.get()]
+        if selected=='@'+self.sample_profile:
+            template['input_font_profile']=self.sample_profile
+        else:
+            template['input_font_path']=selected
+            template.pop('input_font_profile',None)
         template['input_print_style']=self.styles[self.style.get()]
         for key,v in self.vars.items():template[key]=float(v.get())/100
 

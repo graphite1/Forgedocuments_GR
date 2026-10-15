@@ -341,22 +341,22 @@ def styled_font(t,style,default):
     return font_name(dict(t,font_path=str(candidate))) if candidate.is_file() else default
 
 def wrap_text(value,font,size,width,width_scale=1,tracking_em=0):
-    from reportlab.pdfbase import pdfmetrics
+    from input_fonts import string_width
     lines=[]
     for para in value.split('\n'):
         line=''
         for ch in para:
-            if line and pdfmetrics.stringWidth(line+ch,font,size)*width_scale+len(line)*size*tracking_em>width:
+            if line and string_width(line+ch,font,size)*width_scale+len(line)*size*tracking_em>width:
                 lines.append(line); line=''
             line+=ch
         lines.append(line)
     return lines
 
 def fit_text(value,font,size,w,h,wrap=False,min_font=14,width_scale=1,tracking_em=0):
-    from reportlab.pdfbase import pdfmetrics
+    from input_fonts import string_width
     while size>=min_font:
         lines=wrap_text(value,font,size,w,width_scale,tracking_em) if wrap else value.split('\n')
-        if len(lines)*size*1.18<=h and all(pdfmetrics.stringWidth(s,font,size)*width_scale+max(0,len(s)-1)*size*tracking_em<=w for s in lines): return size,lines
+        if len(lines)*size*1.18<=h and all(string_width(s,font,size)*width_scale+max(0,len(s)-1)*size*tracking_em<=w for s in lines): return size,lines
         size-=0.5
     raise ValueError('文字が欄内に収まりません。文字数を減らすか、設定の欄・文字サイズを調整してください')
 
@@ -399,6 +399,9 @@ def render_pdf(path,records,t,validate_records=True):
     font=font_name(t)
     base_font=font;style_fonts={}
     input_font=font_name(dict(t,font_path=t['input_font_path'])) if t.get('input_font_path') else base_font
+    from tomei_print_font import input_font as selected_input_font
+    from input_fonts import string_width,draw_text
+    input_font=selected_input_font(t,input_font)
     density=float(t.get('input_density',1))
     input_alpha=1-float(t.get('input_transparency',0))
     from pdf_input_alpha import begin_ink,end_ink
@@ -446,8 +449,7 @@ def render_pdf(path,records,t,validate_records=True):
                 c.setFillColorRGB(*ink)
                 for i,s in enumerate(lines):
                     tx=x
-                    from reportlab.pdfbase import pdfmetrics
-                    width=pdfmetrics.stringWidth(s,font,size)*width_scale+max(0,len(s)-1)*size*tracking_em
+                    width=string_width(s,font,size)*width_scale+max(0,len(s)-1)*size*tracking_em
                     if align=='center': tx+=(w-width)/2
                     if align=='right': tx+=w-width
                     top=y+(h-len(lines)*size*1.18)/2+i*size*1.18
@@ -473,7 +475,7 @@ def render_pdf(path,records,t,validate_records=True):
                             mask=canvas.Canvas(buffer,pagesize=(mask_width+size,size*1.6),pageCompression=1)
                             mask.setFillColorRGB(0,0,0);mask.setStrokeColorRGB(0,0,0)
                             mask.setLineWidth(float(t.get('impact_stroke',1.1)))
-                            glyph=mask.beginText(size*.2,size*.3);glyph.setFont(font,size);glyph.setCharSpace(size*tracking_em/width_scale);glyph.setTextRenderMode(2);glyph.textOut(s);mask.drawText(glyph);mask.save()
+                            draw_text(mask,font,s,size,size*tracking_em/width_scale,2,size*.2,size*.3);mask.save()
                             with pymupdf.open(stream=buffer.getvalue(),filetype='pdf') as md:
                                 pix=md[0].get_pixmap(matrix=pymupdf.Matrix(3,3),colorspace=pymupdf.csGRAY,alpha=False)
                                 raw=pix.samples;pitch=max(.75,float(t.get('impact_pitch',1.2)))
@@ -492,22 +494,21 @@ def render_pdf(path,records,t,validate_records=True):
                         radius=pitch*float(t.get('impact_dot_ratio',.46))
                         # Invisible glyphs preserve text search and copy in the PDF.
                         c.scale(width_scale,1)
-                        obj=c.beginText(0,0);obj.setFont(font,size);obj.setCharSpace(size*tracking_em/width_scale);obj.setTextRenderMode(3);obj.textOut(s);c.drawText(obj)
+                        draw_text(c,font,s,size,size*tracking_em/width_scale,3)
                         for px,py in points:c.circle(px,py,radius,stroke=0,fill=1)
                     else:
-                        c.setFont(font,size)
                         if is_input:
                             c.scale(width_scale,1)
                         if is_input and t.get('input_print_style','smooth')!='plain':
                             c.setStrokeColorRGB(*ink)
                             c.setLineWidth(size*float(t.get('input_weight_em',.018)) if t.get('input_print_style')=='printer' else float(t.get('input_stroke',.5)))
-                            obj=c.beginText(0,0);obj.setFont(font,size);obj.setCharSpace(size*tracking_em/width_scale);obj.setTextRenderMode(2);obj.textOut(s);c.drawText(obj)
+                            draw_text(c,font,s,size,size*tracking_em/width_scale,2)
                         elif is_input and tracking_em:
-                            obj=c.beginText(0,0);obj.setFont(font,size);obj.setCharSpace(size*tracking_em/width_scale);obj.textOut(s);c.drawText(obj)
+                            draw_text(c,font,s,size,size*tracking_em/width_scale)
                         elif align=='justify' and len(s)>1:
                             obj=c.beginText(0,0);obj.setFont(font,size)
                             obj.setCharSpace((w-width)/(len(s)-1));obj.textOut(s);c.drawText(obj)
-                        else:c.drawString(0,0,s)
+                        else:draw_text(c,font,s,size)
                     if is_input:end_ink(c,ink_group)
                     c.restoreState()
             for item in t['fixed_texts']:
