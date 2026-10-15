@@ -36,9 +36,10 @@ def approved_font_args():
     if source is None:raise ValueError('Approved numeric subset is missing')
     return ['--add-data',str(source)+':assets','--add-data',str(font_file().with_suffix('.json'))+':assets']
 
-def build(output,unsigned=False,private_background=None,sample_print_font=None,prerelease_preview=False):
+def build(output,unsigned=False,private_background=None,sample_print_font=None,prerelease_preview=False,local_confirmation=False):
     if sys.platform!='win32':raise RuntimeError('Windows EXEはWindows環境でビルド・診断してください。Linux製の実行ファイルは配布しません')
     if sample_print_font and not unsigned:raise ValueError('Sample-derived font is limited to unsigned private confirmation builds')
+    if local_confirmation and not unsigned:raise ValueError('Local confirmation builds must use --unsigned')
     if unsigned:key=None;cfg=json.loads((ROOT/'update_config.json').read_text(encoding='utf-8'))
     else:key,cfg=prepare_key()
     output=Path(output).resolve();output.mkdir(parents=True,exist_ok=True)
@@ -88,6 +89,10 @@ def build(output,unsigned=False,private_background=None,sample_print_font=None,p
         with (dest/'README.txt').open('a',encoding='utf-8-sig') as note:
             note.write('\nUnsigned prerelease for validation. The numeric font is a limited raster-derived subset; other characters use the selected Windows font. This ZIP is not a signed automatic-update package.\n')
         files['README.txt']=hashlib.sha256((dest/'README.txt').read_bytes()).hexdigest()
+    if local_confirmation:
+        with (dest/'README.txt').open('a',encoding='utf-8-sig') as note:
+            note.write('\nLOCAL CONFIRMATION ONLY: unpublished additional changes. Do not publish this EXE or ZIP without separate approval. Existing 1.3.10 release is unchanged.\n')
+        files['README.txt']=hashlib.sha256((dest/'README.txt').read_bytes()).hexdigest()
     (dest/'release_files.json').write_text(json.dumps(files,ensure_ascii=False,sort_keys=True,indent=2),encoding='utf-8')
     archive=output/f"Forgedocuments_GR-{v['version']}-windows-x64.zip"
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
@@ -105,6 +110,7 @@ if __name__=='__main__':
     parser.add_argument('--private-background',type=Path,help='本人用の非公開ビルドだけに修正背景を同梱。公開資産へアップロードしない')
     parser.add_argument('--sample-print-font',type=Path,help='Private confirmation only: bundle the validated sample-derived TTF; never publish this build')
     parser.add_argument('--prerelease-preview',action='store_true',help='Mark an unsigned GitHub prerelease validation package')
+    parser.add_argument('--local-confirmation',action='store_true',help='Mark an unpublished local-only unsigned confirmation package')
     a=parser.parse_args()
     if a.prepare_key:prepare_key();print('Existing signing key matches the unchanged public key')
-    else:build(a.output,unsigned=a.unsigned,private_background=a.private_background,sample_print_font=a.sample_print_font,prerelease_preview=a.prerelease_preview)
+    else:build(a.output,unsigned=a.unsigned,private_background=a.private_background,sample_print_font=a.sample_print_font,prerelease_preview=a.prerelease_preview,local_confirmation=a.local_confirmation)

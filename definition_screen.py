@@ -214,6 +214,10 @@ class DefinitionScreen:
         body.bind('<Configure>',lambda e:canvas.configure(scrollregion=canvas.bbox('all')));canvas.bind('<Configure>',lambda e:canvas.itemconfigure(win,width=e.width))
         self.layout_settings=LayoutSettings(body,self.template);self.layout_settings.pack(fill='x',pady=5)
         self.input_print_settings=InputPrintSettings(body,self.template);self.input_print_settings.pack(fill='x',pady=5)
+        self.blue_ink_settings=None
+        if self.template.get('form_id')=='tomei_taiheiyo':
+            from blue_ink_settings import BlueInkSettings
+            self.blue_ink_settings=BlueInkSettings(body,self.template);self.blue_ink_settings.pack(fill='x',pady=5)
         self.background_settings=None
         if self.template.get('render_mode')=='background':
             from background_settings import BackgroundSettings
@@ -231,6 +235,7 @@ class DefinitionScreen:
         if not self.may_leave():return
         t=json.loads(self.json_edit.get('1.0','end'));self.layout_settings.apply(t);self.field_settings.apply(t)
         self.input_print_settings.apply(t)
+        if self.blue_ink_settings:self.blue_ink_settings.apply(t)
         if self.background_settings:self.background_settings.apply(t)
         t['random_print_enabled']=self.random_enabled.get()
         for key,v in self.random_axes.items():t[key]=float(v.get())
@@ -250,6 +255,7 @@ class DefinitionScreen:
         t=self.store.prepare_definition(load_template(path));self.validate_policy(t);validate_template(t)
         self.layout_settings.load(t);self.field_settings.load(t);self.random_enabled.set(t.get('random_print_enabled',False))
         self.input_print_settings.load(t)
+        if self.blue_ink_settings:self.blue_ink_settings.load(t)
         if self.background_settings:self.background_settings.load(t)
         for key,v in self.random_axes.items():v.set(str(t.get(key,.3)))
         self.json_edit.delete('1.0','end');self.json_edit.insert('1.0',json.dumps(t,ensure_ascii=False,indent=2));self.status.set('設定を読み込みました。適用・保存で確定します')

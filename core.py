@@ -133,6 +133,8 @@ def validate_template(t):
         value=t.get(key,default)
         if isinstance(value,bool) or not math.isfinite(float(value)) or not lower<=float(value)<=upper:
             raise ValueError(f'入力文字の{key}は{lower:g}〜{upper:g}で指定してください')
+    from blue_ink import density as validate_blue_density
+    validate_blue_density(t)
     placements(t)
     return t
 
@@ -402,6 +404,9 @@ def render_pdf(path,records,t,validate_records=True):
     from tomei_print_font import input_font as selected_input_font
     from input_fonts import string_width,draw_text
     input_font=selected_input_font(t,input_font)
+    from blue_ink import density as blue_density,color as blue_color,image as blue_image
+    artwork_density=blue_density(t)
+    if background is not None:background=blue_image(background,artwork_density)
     density=float(t.get('input_density',1))
     input_alpha=1-float(t.get('input_transparency',0))
     from pdf_input_alpha import begin_ink,end_ink
@@ -426,7 +431,8 @@ def render_pdf(path,records,t,validate_records=True):
             if errs: raise ValueError('\n'.join(errs))
             ox,oy,scale=slots[index%len(slots)]
             c.saveState(); c.translate(ox,oy+fh*scale); c.scale(fw/coord_w*scale,-fh/coord_h*scale)
-            c.setStrokeColorRGB(*t['line_color']); c.setFillColorRGB(*t['line_color']); c.setLineWidth(t['line_width'])
+            fixed_blue=blue_color(t['line_color'],artwork_density)
+            c.setStrokeColorRGB(*fixed_blue); c.setFillColorRGB(*fixed_blue); c.setLineWidth(t['line_width'])
             if background is not None:
                 from background_compositor import draw_background
                 draw_background(c,background,coord_w,coord_h)
@@ -435,7 +441,7 @@ def render_pdf(path,records,t,validate_records=True):
                 for line in t['lines']:
                     c.setDash(*line.get('dash',[])); c.line(*line['points'])
             c.setDash()
-            def text(value,box,size=28,align='left',wrap=False,color=None,min_font=14,is_input=None,font_override=None):
+            def text(value,box,size=28,align='left',wrap=False,color=None,min_font=14,is_input=None,font_override=None,notice=False):
                 if not value: return
                 if is_input is None:is_input=color is not None
                 font=font_override or (input_font if is_input else base_font)
@@ -445,7 +451,7 @@ def render_pdf(path,records,t,validate_records=True):
                 x,y,w,h=box
                 try: size,lines=fit_text(str(value),font,float(size),w,h,wrap,min_font,width_scale,tracking_em)
                 except ValueError as e: raise ValueError(f'{str(value)[:30]}: {e}')
-                ink=[1-density+channel*density for channel in (color or t['input_color'])] if is_input else (color or t['line_color'])
+                ink=[1-density+channel*density for channel in (color or t['input_color'])] if is_input else blue_color(color or t['line_color'],artwork_density,notice=notice)
                 c.setFillColorRGB(*ink)
                 for i,s in enumerate(lines):
                     tx=x
@@ -515,7 +521,7 @@ def render_pdf(path,records,t,validate_records=True):
                 if background is not None and item.get('id') not in t.get('overlay_fixed_text_ids',[]):continue
                 style=item.get('font_style')
                 if style not in style_fonts:style_fonts[style]=styled_font(t,style,base_font)
-                if item.get('print',True): text(t.get(item['value_key'],'') if 'value_key' in item else item['text'],item['box'],item.get('font',28),item.get('align','left'),item.get('wrap',False),color=item.get('color'),min_font=item.get('min_font',14),is_input=False,font_override=style_fonts[style])
+                if item.get('print',True): text(t.get(item['value_key'],'') if 'value_key' in item else item['text'],item['box'],item.get('font',28),item.get('align','left'),item.get('wrap',False),color=item.get('color'),min_font=item.get('min_font',14),is_input=False,font_override=style_fonts[style],notice=item.get('id')=='copy_notice')
             if background is not None and t['background'].get('kind')=='synthetic_test':
                 # Synthetic assets demonstrate the pipeline, never original fidelity.
                 text('合成基盤デモ・原票背景未取得',[coord_w*.03,coord_h*.04,coord_w*.94,coord_h*.035],size=coord_w*.018,min_font=coord_w*.012,color=[.4,.4,.4],is_input=False)
@@ -530,7 +536,7 @@ def render_pdf(path,records,t,validate_records=True):
                     for option in f['options']:
                         x,y,w,h=option['box']
                         if background is None:
-                            c.setStrokeColorRGB(*t['line_color']);c.setLineWidth(t['line_width']);c.rect(x,y,w,h,stroke=1,fill=0)
+                            c.setStrokeColorRGB(*fixed_blue);c.setLineWidth(t['line_width']);c.rect(x,y,w,h,stroke=1,fill=0)
                             text(option['label'],option['label_box'],option.get('font',16),min_font=option.get('min_font',10),is_input=False)
                         if option['key'] in selected:
                             c.saveState()

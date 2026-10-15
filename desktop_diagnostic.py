@@ -63,6 +63,33 @@ def numeric_plan_check(screen,root,directory,result):
         mix_plan_label_only_when_value_present=True,numeric_style='plain')
 
 
+def blue_ink_check(screen,root,directory,result):
+    from tomei_preset import public_bundle_files
+    files={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in public_bundle_files()}
+    before=(screen.template['input_density'],screen.template['input_transparency'])
+    values=screen.values()
+    for percent in (35,100,150):
+        screen.blue_ink_settings.value.set(str(percent));screen.save_settings()
+        for _ in range(3):screen.preview_current();root.update()
+        name=f'blue-{percent}'
+        core.render_pdf(directory/(name+'.pdf'),[values],screen.template)
+        with pymupdf.open(directory/(name+'.pdf')) as doc:
+            assert doc[0].get_pixmap().samples==screen.preview_view.doc[0].get_pixmap().samples
+            doc[0].get_pixmap(dpi=150,alpha=False).save(directory/(name+'.png'))
+        opaque=copy.deepcopy(screen.template);opaque.update(input_density=1,input_transparency=0)
+        core.render_pdf(directory/(name+'-comparison.pdf'),[values],opaque)
+        four=copy.deepcopy(opaque);four['page_layout'].update(paper='A4',rows=2,columns=2,scale='fit')
+        core.render_pdf(directory/(name+'-four-up.pdf'),[values]*5,four)
+        with pymupdf.open(directory/(name+'-four-up.pdf')) as doc:
+            assert [len(p.search_for('納入書（計画）')) for p in doc]==[4,1]
+            for page in doc:
+                for box in page.search_for('納入書（計画）'):assert page.rect.contains(box)
+    assert (screen.template['input_density'],screen.template['input_transparency'])==before
+    assert files=={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
+    result.update(blue_density_previews=9,blue_density_levels=[.35,1,1.5],blue_preview_pdf_pixel_difference=0,
+                  blue_four_up=True,blue_source_unchanged=True,black_settings_unchanged_by_blue=True,saved_blue_density=1.5)
+
+
 def sample_font_check(screen,root,directory,result):
     import tomei_print_font as sample
     asset=sample.validated_file()
@@ -210,6 +237,7 @@ def run(destination=None):
                                   transparency_preview_pdf_pixel_difference=0,transparency_four_up=True)
                     sample_font_check(screen,root,directory,result)
                     numeric_plan_check(screen,root,directory,result)
+                    blue_ink_check(screen,root,directory,result)
                 evidence['forms'][row['id']]=result
             finally:
                 if screen:screen.store.close()
@@ -220,6 +248,9 @@ def run(destination=None):
                 if row['id']=='tomei_taiheiyo':
                     assert screen.template['input_density']==.65
                     assert screen.template['input_transparency']==.3
+                    assert screen.template['blue_ink_density']==result['saved_blue_density']
+                    assert screen.blue_ink_settings.value.get()=='150'
+                    result['blue_density_survives_reopen']=True
                     assert screen.store.list()[0]['data']['delivery_volume']=='-'
                     screen.set_values(screen.store.list()[0]['data'])
                     result['density_and_hyphens_survive_reopen']=True
