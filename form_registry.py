@@ -19,3 +19,8 @@ def catalog(path=None):
 def open_screen(row,root,directory):
     factory=getattr(importlib.import_module(row['module']),'App')
     return factory(root,directory)
+
+
+def default_definition(row):
+    from core import load_template
+    return load_template(BASE/row.get('template','template.json'))

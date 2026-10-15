@@ -20,11 +20,11 @@ class DefinitionScreen:
             self.template=self.store.template();self.validate_policy(self.template)
         except Exception:self.store.close();raise
         self.current=None;self.changed=False;self.suspend=False;self.loaded_values=None
-        self.vars={};self.widgets={};self.choice_vars={};self.folder_switch_handler=None
+        self.vars={};self.widgets={};self.choice_vars={};self.folder_open_handler=None
         root.title('Forgedocuments GR｜'+self.template['name']);root.geometry('1250x850');root.minsize(950,650)
         bar=ttk.Frame(root,padding=8);bar.pack(fill='x')
         ttk.Label(bar,text=self.template['name'],font=('Yu Gothic UI',16,'bold')).pack(side='left')
-        ttk.Button(bar,text='保存先を切替',command=self.switch_folder).pack(side='right')
+        ttk.Button(bar,text='保存フォルダーを開く',command=lambda:self.guarded(self.open_storage)).pack(side='right')
         ttk.Button(bar,text='バックアップ',command=lambda:self.guarded(self.backup)).pack(side='right',padx=5)
         self.notebook=ttk.Notebook(root);self.notebook.pack(fill='both',expand=True)
         self.listtab=ttk.Frame(self.notebook);self.entrytab=ttk.Frame(self.notebook);self.settingtab=ttk.Frame(self.notebook)
@@ -270,9 +270,10 @@ class DefinitionScreen:
         if Path(path).resolve()==(self.store.directory/'records.sqlite3').resolve():raise ValueError('使用中のDBはバックアップ先に指定できません')
         self.store.backup(path,self.template)
 
-    def switch_folder(self):
-        if self.folder_switch_handler:return self.folder_switch_handler()
-        raise ValueError('保存先の切替は帳票選択画面から開いて実行してください')
+    def open_storage(self):
+        if self.folder_open_handler:return self.folder_open_handler()
+        from app_storage import open_folder
+        return open_folder(self.store.directory)
 
     def close(self):
         if self.may_leave():self.store.close();self.root.destroy()

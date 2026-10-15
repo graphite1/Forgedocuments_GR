@@ -213,7 +213,7 @@ class TomeiChecks(unittest.TestCase):
     def test_second_form_registered_and_ac_store_unchanged(self):
         rows=catalog();self.assertEqual([r['id'] for r in rows],['ac_toyoake','tomei_taiheiyo'])
         ac=self.path/'ac';s=core.Store(ac);s.set_template(core.load_template());s.close();before=(ac/'records.sqlite3').read_bytes()
-        concrete=self.path/'concrete';concrete.mkdir();root=tk.Tk();root.withdraw();home=Home(root,{'ac_toyoake':str(ac),'tomei_taiheiyo':str(concrete)})
+        concrete=self.path/'concrete';concrete.mkdir();root=tk.Tk();root.withdraw();home=Home(root,{'ac_toyoake':str(ac),'tomei_taiheiyo':str(concrete)},storage_root=self.path/'automatic-install')
         try:
             home.open(rows[1]);root.update();screen=home.screens['tomei_taiheiyo']
             self.assertNotIn('company_address',screen.template);self.assertNotIn('エーシートヨアケ',json.dumps(screen.template,ensure_ascii=False))

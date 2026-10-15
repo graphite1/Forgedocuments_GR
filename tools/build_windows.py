@@ -78,7 +78,7 @@ def build(output,unsigned=False,private_background=None,sample_print_font=None,p
     args+=['--hidden-import','reportlab.pdfbase._fontdata_enc_winansi','--hidden-import','reportlab.pdfbase._fontdata_enc_macroman',str(ROOT/'app.py')]
     subprocess.run(args,cwd=ROOT,check=True)
     for name in ['template.json','forms.json','version.json','update_config.json']:(dest/name).write_bytes((ROOT/name).read_bytes())
-    (dest/'README.txt').write_text('Forgedocuments GR\n\n「Forgedocuments GR.exe」を開き、エーシー帳票を選択してください。\nPythonやbatの操作は不要です。\n右ドラッグでプレビュー移動、Ctrl＋ホイールで拡大・縮小。\n会社別のtemplate.jsonはエーシー帳票の帳票設定から取り込んでください。\n入力データは選択した保存先に置かれ、更新で上書きされません。\nアプリの更新からGR Release Hubの更新を取得できます。\n実機プリンターでの印刷は未検証。外周枠寸法は暫定値です。\n',encoding='utf-8-sig')
+    (dest/'README.txt').write_text('Forgedocuments GR\n\n「Forgedocuments GR.exe」を開き、使用する帳票を選択してください。\nPythonやbatの操作は不要です。\n入力・帳票設定はアプリのdataフォルダー内に帳票別で自動保存します。保存先の指定は不要です。\n旧保存先のデータはバックアップしてから、対応する帳票だけをコピーします。元のファイルは変更しません。\nアプリを別の場所へ移す場合は、dataフォルダーも一緒に移してください。\nZIPは書き込み可能なフォルダーへ展開してください。\n右ドラッグでプレビュー移動、Ctrl＋ホイールで拡大・縮小。\n会社別のtemplate.jsonは対応する帳票の帳票設定から取り込んでください。\nアプリの更新からGR Release Hubの更新を取得できます。\n実機プリンターでの印刷は未検証。外周枠寸法は暫定値です。\n',encoding='utf-8-sig')
     files={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in dest.iterdir() if p.is_file()}
     if sample_print_font:
         with (dest/'README.txt').open('a',encoding='utf-8-sig') as note:

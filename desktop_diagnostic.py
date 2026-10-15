@@ -151,6 +151,8 @@ def run(destination=None):
     output.mkdir(parents=True,exist_ok=True)
     evidence={'forms':{},'physical_printing':False,'original_ac_overlay_verified':False}
     try:
+        from storage_diagnostic import run as check_automatic_storage
+        evidence['automatic_storage']=check_automatic_storage(output/'automatic-storage')
         for row in catalog():
             directory=output/row['id']
             directory.mkdir(exist_ok=True)

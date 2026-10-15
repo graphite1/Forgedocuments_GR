@@ -4,7 +4,8 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import ttk,filedialog,messagebox
 from core import atomic_json
-from form_registry import catalog,open_screen
+from form_registry import catalog,open_screen,default_definition
+from app_storage import AppStorage,open_folder
 import updates
 
 def profiles_path():return Path(os.environ.get('APPDATA',str(Path.home())))/'ForgedocumentsGR'/'profiles.json'
@@ -19,11 +20,15 @@ def read_profiles():
     return data
 
 class Home:
-    def __init__(self,root,profiles=None):
-        self.root=root;self.profiles=read_profiles() if profiles is None else profiles;self.screens={};self.update_dialog=None
+    def __init__(self,root,profiles=None,storage_root=None):
+        self.root=root;self.screens={};self.update_dialog=None
+        style=ttk.Style(root);style.theme_use('clam');style.configure('TButton',padding=(9,5));style.configure('TNotebook.Tab',padding=(15,7))
+        self.storage=AppStorage(storage_root or updates.install_root(),read_profiles() if profiles is None else profiles,profiles_path())
+        self.profiles={row['id']:str(self.storage.path(row['id'])) for row in catalog()}
         root.title('Forgedocuments GR｜帳票選択');root.geometry('820x560');root.minsize(650,420)
         ttk.Label(root,text='Forgedocuments GR',font=('Yu Gothic UI',24,'bold'),padding=20).pack(anchor='w')
         ttk.Label(root,text='使用する帳票を選択してください',padding=(20,0,20,16)).pack(anchor='w')
+        ttk.Label(root,text='保存先はアプリ内で帳票ごとに自動設定します。フォルダーの指定は不要です。',padding=(20,0,20,8)).pack(anchor='w')
         for row in catalog():
             frame=ttk.LabelFrame(root,text=row['title'],padding=16);frame.pack(fill='x',padx=20,pady=8)
             ttk.Label(frame,text=row['description']).pack(side='left')
@@ -33,35 +38,18 @@ class Home:
         ttk.Button(footer,text='アプリの更新',command=self.show_updates).pack(side='right')
         root.protocol('WM_DELETE_WINDOW',self.close)
 
-    def save_profiles(self):
-        p=profiles_path();p.parent.mkdir(parents=True,exist_ok=True);atomic_json(p,self.profiles)
-
     def open(self,row):
         try:
             if row['id'] in self.screens and self.screens[row['id']].root.winfo_exists():
                 self.screens[row['id']].root.lift();return
-            directory=self.profiles.get(row['id'])
-            if not directory or not Path(directory).is_dir():
-                directory=filedialog.askdirectory(title=row['title']+'のデータ保存先',parent=self.root)
-                if not directory:return
-                for fid,path in self.profiles.items():
-                    if fid!=row['id'] and Path(path).resolve()==Path(directory).resolve():raise ValueError('別の帳票の保存先と同じフォルダーは使用できません')
-                self.profiles[row['id']]=directory;self.save_profiles()
+            directory=self.storage.prepare(default_definition(row))
             win=tk.Toplevel(self.root)
             try:screen=open_screen(row,win,directory)
             except Exception:win.destroy();raise
             self.screens[row['id']]=screen
-            # Form-owned folder selection returns to the shell; no nested mainloops.
-            screen.folder_switch_handler=lambda:self.switch(row,screen)
+            screen.folder_open_handler=lambda:open_folder(directory)
+            if row['id'] in self.storage.notices:screen.status.set(self.storage.notices.pop(row['id']))
         except Exception as e:messagebox.showerror('帳票を開けません',str(e),parent=self.root)
-
-    def switch(self,row,screen):
-        if not screen.may_leave():return
-        path=filedialog.askdirectory(title=row['title']+'の保存先を切替',parent=screen.root)
-        if not path:return
-        for fid,other in self.profiles.items():
-            if fid!=row['id'] and Path(other).resolve()==Path(path).resolve():messagebox.showerror('保存先','別帳票と同じ保存先は使用できません',parent=screen.root);return
-        screen.store.close();screen.root.destroy();self.profiles[row['id']]=path;self.save_profiles();self.open(row)
 
     def living(self):return [s for s in self.screens.values() if s.root.winfo_exists()]
 

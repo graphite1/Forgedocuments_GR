@@ -23,7 +23,7 @@ class App:
         style=ttk.Style();style.theme_use('clam');style.configure('TButton',padding=(9,5));style.configure('TNotebook.Tab',padding=(15,7))
         top=ttk.Frame(root,padding=10);top.pack(fill='x')
         ttk.Label(top,text='運搬明細書',font=('Yu Gothic UI',19,'bold')).pack(side='left')
-        ttk.Button(top,text='保存先を切替',command=self.switch_folder).pack(side='right')
+        ttk.Button(top,text='保存フォルダーを開く',command=lambda:self.guarded(self.open_storage)).pack(side='right')
         ttk.Button(top,text='バックアップ',command=self.backup).pack(side='right',padx=6)
         self.notebook=ttk.Notebook(root);self.notebook.pack(fill='both',expand=True,padx=10,pady=4)
         self.entrytab=ttk.Frame(self.notebook);self.listtab=ttk.Frame(self.notebook);self.settingtab=ttk.Frame(self.notebook)
@@ -356,13 +356,11 @@ class App:
                 self.store.backup(path,self.template);self.status.set('バックアップしました。SQLiteファイルと同名の設定JSONをセットで保管してください')
         self.guarded(run)
 
-    def switch_folder(self):
-        handler=getattr(self,'folder_switch_handler',None)
+    def open_storage(self):
+        handler=getattr(self,'folder_open_handler',None)
         if handler:return handler()
-        if not self.may_leave():return
-        path=filedialog.askdirectory(title='別の保存先を選択（再起動します）',parent=self.root)
-        if not path:return
-        remember(path);self.store.close();self.root.destroy();main(path)
+        from app_storage import open_folder
+        return open_folder(self.store.directory)
 
     def close(self):
         if self.may_leave():self.store.close();self.root.destroy()
@@ -375,14 +373,11 @@ def remember(directory):
 def main(directory=None,smoke=False):
     root=tk.Tk();root.withdraw()
     if directory is None:
-        p=preferences()
-        if p.exists():
-            try:directory=json.loads(p.read_text(encoding='utf-8'))['directory']
-            except (KeyError,ValueError):pass
-        if not directory or not Path(directory).is_dir():
-            directory=filedialog.askdirectory(title='伝票データの保存先フォルダを選んでください',parent=root)
-            if not directory:root.destroy();return
-        remember(directory)
+        from main_app import read_profiles,profiles_path
+        from app_storage import AppStorage
+        import updates
+        try:directory=AppStorage(updates.install_root(),read_profiles(),profiles_path()).prepare(load_template())
+        except Exception as e:messagebox.showerror('保存先を使用できません',str(e),parent=root);root.destroy();return
     try:app=App(root,directory)
     except Exception as e:messagebox.showerror('起動エラー',str(e),parent=root);root.destroy();return
     if smoke:root.after(500,app.close)

@@ -25,6 +25,7 @@ from verify_transparency import TransparencyChecks
 from verify_sample_font import FontRunChecks,SampleFontChecks
 from verify_numeric_plan import NumericPlanChecks
 from verify_blue_ink import BlueInkChecks
+from verify_app_storage import AppStorageChecks
 
 
 class KeyFreePlatformChecks(PlatformChecks):
@@ -43,7 +44,7 @@ class KeyFreePlatformChecks(PlatformChecks):
 
 def suite():
     loader=unittest.defaultTestLoader
-    return unittest.TestSuite(loader.loadTestsFromTestCase(c) for c in (Verification,KeyFreePlatformChecks,Regressions,LayoutAndInputs,TomeiChecks,BackgroundChecks,FixedFooterChecks,PublicBackgroundChecks,InputPrintChecks,TransparencyChecks,FontRunChecks,SampleFontChecks,NumericPlanChecks,BlueInkChecks))
+    return unittest.TestSuite(loader.loadTestsFromTestCase(c) for c in (Verification,KeyFreePlatformChecks,Regressions,LayoutAndInputs,TomeiChecks,BackgroundChecks,FixedFooterChecks,PublicBackgroundChecks,InputPrintChecks,TransparencyChecks,FontRunChecks,SampleFontChecks,NumericPlanChecks,BlueInkChecks,AppStorageChecks))
 
 
 if __name__=='__main__':
