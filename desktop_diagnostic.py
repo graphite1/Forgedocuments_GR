@@ -89,6 +89,21 @@ def run(destination=None):
                         doc[0].get_pixmap(dpi=200,alpha=False).save(directory/'density-65.png')
                     assert screen.store.get(record['id'])==record
                     result.update(saved_density=.65,density_preview_pdf_pixel_difference=0,hyphens_preserved=True)
+                    screen.input_print_settings.vars['input_transparency'].set('30')
+                    screen.save_settings()
+                    for _ in range(3):screen.preview_current();root.update()
+                    core.render_pdf(directory/'transparency-30.pdf',[values],screen.template)
+                    with pymupdf.open(directory/'transparency-30.pdf') as doc:
+                        assert doc[0].get_pixmap().samples==screen.preview_view.doc[0].get_pixmap().samples
+                        doc[0].get_pixmap(dpi=200,alpha=False).save(directory/'transparency-30.png')
+                    four=copy.deepcopy(screen.template)
+                    four['page_layout'].update(paper='A4',rows=2,columns=2,scale='fit')
+                    core.render_pdf(directory/'transparency-30-four-up.pdf',[values]*5,four)
+                    with pymupdf.open(directory/'transparency-30-four-up.pdf') as doc:
+                        assert [len(p.search_for('納入書（計画）')) for p in doc]==[4,1]
+                    assert screen.store.get(record['id'])==record
+                    result.update(saved_transparency=.3,transparency_previews=3,
+                                  transparency_preview_pdf_pixel_difference=0,transparency_four_up=True)
                 evidence['forms'][row['id']]=result
             finally:
                 if screen:screen.store.close()
@@ -98,9 +113,11 @@ def run(destination=None):
                 screen=open_screen(row,root,directory/'records')
                 if row['id']=='tomei_taiheiyo':
                     assert screen.template['input_density']==.65
+                    assert screen.template['input_transparency']==.3
                     assert screen.store.list()[0]['data']['delivery_volume']=='-'
                     screen.set_values(screen.store.list()[0]['data'])
                     result['density_and_hyphens_survive_reopen']=True
+                    result['transparency_survives_reopen']=True
                 screen.preview_current();root.update()
                 assert screen.preview_view.doc is not None
                 result['close_and_reopen_preview']=True

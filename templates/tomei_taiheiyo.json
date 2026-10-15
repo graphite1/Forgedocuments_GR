@@ -25,6 +25,7 @@
   "input_print_style": "printer",
   "input_font_path": "",
   "input_density": 1.0,
+  "input_transparency": 0.0,
   "input_width_scale": 0.96,
   "input_tracking_em": 0.02,
   "input_weight_em": 0.018,

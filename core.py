@@ -4,6 +4,7 @@ import base64, copy, csv, hashlib, io, json, math, os, re, sqlite3, uuid
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from itertools import count
 from page_layout import placements
 from input_definitions import default_values,validate_definitions
 
@@ -127,7 +128,7 @@ def validate_template(t):
         value=t.get(key,0.3)
         if isinstance(value,bool) or not math.isfinite(float(value)) or not 0<=float(value)<=2:
             raise ValueError('ランダム印字のずれ幅は0〜2mmで設定')
-    for key,lower,upper,default in (('input_density',.35,1,1),('input_width_scale',.8,1.2,1),
+    for key,lower,upper,default in (('input_density',.35,1,1),('input_transparency',0,1,0),('input_width_scale',.8,1.2,1),
                                   ('input_tracking_em',0,.2,0),('input_weight_em',0,.06,.018)):
         value=t.get(key,default)
         if isinstance(value,bool) or not math.isfinite(float(value)) or not lower<=float(value)<=upper:
@@ -399,6 +400,9 @@ def render_pdf(path,records,t,validate_records=True):
     base_font=font;style_fonts={}
     input_font=font_name(dict(t,font_path=t['input_font_path'])) if t.get('input_font_path') else base_font
     density=float(t.get('input_density',1))
+    input_alpha=1-float(t.get('input_transparency',0))
+    from pdf_input_alpha import begin_ink,end_ink
+    ink_serial=count()
     input_ink=[1-density+channel*density for channel in t['input_color']]
     impact_cache={}
     occurrences={}
@@ -455,6 +459,9 @@ def render_pdf(path,records,t,validate_records=True):
                         delta=max(y-base,min(y+h-len(lines)*size*1.18-base,shift_y))
                         top+=delta
                     c.saveState(); c.translate(tx,top+size*.91); c.scale(1,-1)
+                    if is_input:
+                        ink_group=begin_ink(c,input_alpha,(-size,-size,width+size,size*1.5),f'input_ink_{next(ink_serial)}')
+                        c.setFillColorRGB(*ink)
                     if is_input and t.get('input_print_style','smooth')=='impact':
                         # A regular pin grid makes the input look like impact-printer ink.
                         # Render the glyph once to obtain coverage, then draw vector dots.
@@ -501,6 +508,7 @@ def render_pdf(path,records,t,validate_records=True):
                             obj=c.beginText(0,0);obj.setFont(font,size)
                             obj.setCharSpace((w-width)/(len(s)-1));obj.textOut(s);c.drawText(obj)
                         else:c.drawString(0,0,s)
+                    if is_input:end_ink(c,ink_group)
                     c.restoreState()
             for item in t['fixed_texts']:
                 if background is not None and item.get('id') not in t.get('overlay_fixed_text_ids',[]):continue
@@ -524,20 +532,29 @@ def render_pdf(path,records,t,validate_records=True):
                             c.setStrokeColorRGB(*t['line_color']);c.setLineWidth(t['line_width']);c.rect(x,y,w,h,stroke=1,fill=0)
                             text(option['label'],option['label_box'],option.get('font',16),min_font=option.get('min_font',10),is_input=False)
                         if option['key'] in selected:
+                            c.saveState()
+                            if is_input:
+                                ink_group=begin_ink(c,input_alpha,(0,0,coord_w,coord_h),f'input_ink_{next(ink_serial)}')
                             c.setStrokeColorRGB(*input_ink);c.setLineWidth(t.get('input_stroke',.5))
                             dx=max(-w*.2,min(w*.2,shift_x));dy=max(-h*.2,min(h*.2,shift_y))
                             c.line(x+w*.2+dx,y+h*.2+dy,x+w*.8+dx,y+h*.8+dy);c.line(x+w*.2+dx,y+h*.8+dy,x+w*.8+dx,y+h*.2+dy)
+                            if is_input:end_ink(c,ink_group)
+                            c.restoreState()
                     continue
                 if not value: continue
                 suffix=f.get('display_suffix','')
                 if suffix and value!='-' and not str(value).rstrip().endswith(suffix.strip()):
                     value=str(value)+suffix
                 if value in f.get('choice_marks',{}):
+                    c.saveState()
+                    if is_input:
+                        ink_group=begin_ink(c,input_alpha,(0,0,coord_w,coord_h),f'input_ink_{next(ink_serial)}')
                     c.setStrokeColorRGB(*input_ink);c.setLineWidth(1.5)
                     x,y,w,h=f['choice_marks'][value];bx,by,bw,bh=f.get('mark_bounds',[0,0,coord_w,coord_h])
                     dx=max(bx-x,min(bx+bw-x-w,shift_x));dy=max(by-y,min(by+bh-y-h,shift_y))
                     c.ellipse(x+dx,y+dy,x+w+dx,y+h+dy,stroke=1,fill=0)
-                    c.setStrokeColorRGB(*t['line_color']);c.setLineWidth(t['line_width'])
+                    if is_input:end_ink(c,ink_group)
+                    c.restoreState()
                     continue
                 if f['type']=='image':
                     x,y,w,h=f['box']

@@ -23,13 +23,13 @@ class InputPrintSettings(ttk.LabelFrame):
         self.styles={'伝票印字':'printer','通常':'plain','従来の太字':'smooth','従来のドット':'impact'}
         ttk.Combobox(self,textvariable=self.style,values=list(self.styles),state='readonly',width=15).grid(row=0,column=3)
         self.vars={}
-        self.defaults={'input_density':1,'input_width_scale':1,'input_tracking_em':0,'input_weight_em':.018}
-        for i,(key,label) in enumerate((('input_density','濃さ 35〜100%'),('input_width_scale','字幅 80〜120%'),
-                                       ('input_tracking_em','字間 0〜20%'),('input_weight_em','線の太さ 0〜6%')),1):
+        self.defaults={'input_density':1,'input_transparency':0,'input_width_scale':1,'input_tracking_em':0,'input_weight_em':.018}
+        for i,(key,label) in enumerate((('input_transparency','透過度 0〜100%'),('input_density','文字色の濃さ 35〜100%'),
+                                       ('input_width_scale','字幅 80〜120%'),('input_tracking_em','字間 0〜20%'),('input_weight_em','線の太さ 0〜6%')),1):
             row,col=1+(i-1)//2,((i-1)%2)*2
             ttk.Label(self,text=label).grid(row=row,column=col,sticky='w',padx=4,pady=4)
             v=tk.StringVar();self.vars[key]=v;ttk.Entry(self,textvariable=v,width=10).grid(row=row,column=col+1,sticky='w')
-        ttk.Label(self,text='字間・線の太さは文字サイズに対する割合です。適用・保存してプレビューで確認できます。').grid(row=3,column=0,columnspan=4,sticky='w')
+        ttk.Label(self,text='透過度：0%=不透明、100%=透明。文字色の濃さはグレー色の調整です。\n字間・線の太さは文字サイズに対する割合です。背景・固定文字は変えません。').grid(row=4,column=0,columnspan=4,sticky='w')
         self.load(template)
 
     def load(self,template):
