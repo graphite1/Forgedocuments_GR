@@ -10,10 +10,12 @@ from pdf_view import PDFView,preview_window
 from preview_files import generated_pdf
 from record_batches import summary
 from settings_widgets import LayoutSettings,FieldDefaultsSettings,InputPrintSettings
+from desktop_theme import configure_theme
 
 
 class DefinitionScreen:
     def __init__(self,root,directory,default_template,validate_policy,migrate_definition=None):
+        configure_theme(root)
         self.root=root;self.default_template=copy.deepcopy(default_template);self.validate_policy=validate_policy
         self.store=Store(directory,default_template=default_template,form_id=default_template['form_id'],validate_definition=validate_policy,migrate_definition=migrate_definition)
         try:

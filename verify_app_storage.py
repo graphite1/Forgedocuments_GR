@@ -96,7 +96,7 @@ class AppStorageChecks(unittest.TestCase):
                     self.assertEqual(reopened.store.list()[0]['data'],values[row['id']])
                 self.assertEqual(home.screens['ac_toyoake'].template['line_color'],ac_color)
                 self.assertEqual(home.screens['tomei_taiheiyo'].template['blue_ink_density'],.55)
-                self.assertEqual(tk.ttk.Style(root).theme_use(),'clam');self.assertFalse(errors)
+                self.assertEqual(tk.ttk.Style(root).theme_use(),'vista' if 'vista' in tk.ttk.Style(root).theme_names() else 'default');self.assertFalse(errors)
             finally:home.dispose()
 
 if __name__=='__main__':unittest.main(verbosity=2)

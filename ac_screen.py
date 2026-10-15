@@ -10,9 +10,11 @@ from ac_defaults import FORM_ID, migrate_template
 from ac_footer import validate_fixed_footer
 from settings_widgets import LayoutSettings, FieldDefaultsSettings
 from record_batches import summary
+from desktop_theme import configure_theme
 
 class App:
     def __init__(self,root,directory):
+        configure_theme(root)
         self.root=root; self.store=Store(directory,default_template=load_template(),form_id=FORM_ID); self.template=self.store.template()
         migrated=migrate_template(self.template,FORM_ID)
         validate_fixed_footer(migrated)
@@ -20,7 +22,6 @@ class App:
         self.template=migrated
         self.current=None;self.loaded_values=None;self.suspend=False;self.changed=False;self.widgets={};self.vars={}
         root.title('Forgedocuments GR｜エーシー帳票');root.geometry('1220x840');root.minsize(880,640)
-        style=ttk.Style();style.theme_use('clam');style.configure('TButton',padding=(9,5));style.configure('TNotebook.Tab',padding=(15,7))
         top=ttk.Frame(root,padding=10);top.pack(fill='x')
         ttk.Label(top,text='運搬明細書',font=('Yu Gothic UI',19,'bold')).pack(side='left')
         ttk.Button(top,text='保存フォルダーを開く',command=lambda:self.guarded(self.open_storage)).pack(side='right')

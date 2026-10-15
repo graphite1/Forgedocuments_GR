@@ -7,6 +7,7 @@ from core import atomic_json
 from form_registry import catalog,open_screen,default_definition
 from app_storage import AppStorage,open_folder
 import updates
+from desktop_theme import configure_theme
 
 def profiles_path():return Path(os.environ.get('APPDATA',str(Path.home())))/'ForgedocumentsGR'/'profiles.json'
 
@@ -21,8 +22,8 @@ def read_profiles():
 
 class Home:
     def __init__(self,root,profiles=None,storage_root=None):
+        configure_theme(root)
         self.root=root;self.screens={};self.update_dialog=None
-        style=ttk.Style(root);style.theme_use('clam');style.configure('TButton',padding=(9,5));style.configure('TNotebook.Tab',padding=(15,7))
         self.storage=AppStorage(storage_root or updates.install_root(),read_profiles() if profiles is None else profiles,profiles_path())
         self.profiles={row['id']:str(self.storage.path(row['id'])) for row in catalog()}
         root.title('Forgedocuments GR｜帳票選択');root.geometry('820x560');root.minsize(650,420)

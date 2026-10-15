@@ -1,4 +1,4 @@
-# Local confirmation of automatic storage (1.3.12)
+# Pre-theme-correction local confirmation of automatic storage (1.3.12)
 
 ## Reproduced causes
 
@@ -24,4 +24,4 @@ ZIP SHA256: `a98dd11d74718e8e5f9ed0cac84e63e867b69e3c8650f80af6446516f7c83ed8` (
 
 The two skipped checks are `test_signature_and_tampering` and `test_zip_traversal_and_stage_integrity`, unchanged from earlier key-free verification. Physical printing and AC-original visual identity remain unverified.
 
-All GUI/EXE checks above finished before the user's subsequent instruction to avoid the screen while gaming. After that instruction only headless reporting, file checks and Git operations were performed. No more GUI or focus use is authorized until the user permits it again. This remains a local unsigned build, with no push, tag, publication or PR merge.
+All GUI/EXE checks above finished before the user's subsequent instruction to avoid the screen while gaming. No more GUI or focus use is authorized until the user permits it again. The hashes above identify the preserved original local/Library ZIP, not the later theme-corrected release artifact. The user subsequently authorized the GitHub prerelease and specified Tomei's former `vista` theme; see `VALIDATION_1.3.12_PREVIEW.md` for the headless correction and publication artifact.
