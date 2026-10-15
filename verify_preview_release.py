@@ -91,6 +91,14 @@ class PreviewReleaseChecks(unittest.TestCase):
             del payload['user-source.zip'];payload['assets/tomei-observed-46-v2.ttf']=b'changed'
             with self.assertRaisesRegex(ValueError,'mismatch'):preview.audit_embedded('synthetic.exe')
 
+    def test_japanese_result_can_be_printed_to_a_windows_cp1252_pipe(self):
+        from contextlib import redirect_stdout
+        raw=io.BytesIO();stream=io.TextIOWrapper(raw,encoding='cp1252',write_through=True)
+        result={'characters':'角文殿普通配合計画書NO.0123456789-','status':'passed'}
+        with redirect_stdout(stream):preview.print_result(result)
+        self.assertEqual(json.loads(raw.getvalue().decode('cp1252')),result)
+        stream.detach()
+
     def test_no_token_creation_and_no_non_github_endpoints(self):
         with self.assertRaisesRegex(ValueError,'existing'):preview.GitHub().api('repos/'+preview.REPOSITORY)
         with self.assertRaisesRegex(ValueError,'endpoint'):preview.GitHub('SYNTHETIC').request('https://example.com/no')
