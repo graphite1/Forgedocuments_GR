@@ -54,7 +54,7 @@ class PublicBackgroundChecks(unittest.TestCase):
 
     def test_corrupt_public_configuration_does_not_fall_back_to_an_unreviewed_image(self):
         for file in public_bundle_files():(self.path/file.name).write_bytes(file.read_bytes())
-        config_path=self.path/'tomei-plan-background.json';config=json.loads(config_path.read_text())
+        config_path=self.path/'tomei-plan-background.json';config=json.loads(config_path.read_text(encoding='utf-8'))
         config['notice_in_image']=False;config_path.write_text(json.dumps(config))
         with patch('tomei_preset.PUBLIC_ASSETS',self.path):
             with self.assertRaisesRegex(ValueError,'照合'):public_bundle_files()

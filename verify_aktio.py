@@ -98,7 +98,7 @@ class AktioChecks(unittest.TestCase):
             with pymupdf.open(path/'全レシート.pdf') as pdf:
                 self.assertEqual(len(pdf),3)
                 self.assertAlmostEqual(pdf[0].rect.width,53.34*72/25.4,places=2)
-            saved=json.loads((path/'運搬記録.json').read_text());self.assertEqual(saved['records'],records)
+            saved=json.loads((path/'運搬記録.json').read_text(encoding='utf-8'));self.assertEqual(saved['records'],records)
         self.assertEqual(print_rectangle(53.34,57.5733333333,300,300,2480,3508,0,0),(925,1414,1555,2094))
         with patch('aktio.printing.os.name','posix'):
             with self.assertRaises(OSError):print_records(records)
@@ -107,7 +107,7 @@ class AktioChecks(unittest.TestCase):
         data=document()
         with tempfile.TemporaryDirectory() as temp:
             manager=AppStorage(Path(temp));row=next(r for r in catalog() if r['id']=='aktio_receipt')
-            folder=manager.prepare(default_definition(row));self.assertEqual(folder,Path(temp)/'data/aktio_receipt')
+            folder=manager.prepare(default_definition(row));self.assertEqual(folder,Path(temp).resolve()/'data/aktio_receipt')
             store=SessionStore(folder);store.save_session(data);store.close()
             store=SessionStore(folder)
             try:self.assertEqual(store.load_session(),data)
