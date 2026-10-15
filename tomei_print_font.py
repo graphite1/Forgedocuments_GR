@@ -8,6 +8,10 @@ LABEL='生コン専用印字（数字・.-B／他は標準）'
 FILENAME='tomei-sample-digits.ttf'
 SHA256='e65eb34b517e6d4bd97713507800cbef8b24cca0f1fc3c0cfc21b485873c342d'
 SUPPORTED=frozenset('0123456789.-B')
+NUMERIC_PROFILE='tomei-numeric-only-v2'
+NUMERIC_LABEL='数字・.-専用／他は標準'
+NUMERIC_SUPPORTED=frozenset('0123456789.-')
+PROFILES={PROFILE:(LABEL,SUPPORTED),NUMERIC_PROFILE:(NUMERIC_LABEL,NUMERIC_SUPPORTED)}
 
 
 def font_file():
@@ -24,7 +28,8 @@ def validated_file(path=None):
 
 
 def input_font(template,fallback):
-    if template.get('form_id')!='tomei_taiheiyo' or template.get('input_font_profile')!=PROFILE:
+    profile=template.get('input_font_profile')
+    if template.get('form_id')!='tomei_taiheiyo' or profile not in PROFILES:
         return fallback
     path=validated_file()
     if path is None:
@@ -34,6 +39,7 @@ def input_font(template,fallback):
     from input_fonts import InputFont
     name='TomeiSampleDigitsV1'
     if name not in pdfmetrics.getRegisteredFontNames():pdfmetrics.registerFont(TTFont(name,str(path),validate=1))
-    if not all(ord(char) in pdfmetrics.getFont(name).face.charToGlyph for char in SUPPORTED):
+    supported=PROFILES[profile][1]
+    if not all(ord(char) in pdfmetrics.getFont(name).face.charToGlyph for char in supported):
         raise ValueError('専用印字フォントに必要な文字がありません。')
-    return InputFont(fallback,name,SUPPORTED)
+    return InputFont(fallback,name,supported)

@@ -12,6 +12,57 @@ import core
 from form_registry import catalog, open_screen
 
 
+def numeric_plan_check(screen,root,directory,result):
+    import tomei_print_font as sample
+    if not sample.validated_file():return
+    data=core.blank(screen.template)
+    # Explicitly synthetic diagnostic inputs; no construction data or defaults.
+    data.update(departure_time='09:30',delivery_volume='4.250',cumulative_volume='12.500',
+        concrete_type='普通',nominal_strength='24',slump_or_flow='8',max_aggregate_size='25',cement_type='BB',
+        cement_1='232',cement_2='-',mineral_admixture='-',water='160',fine_aggregate_1='708',fine_aggregate_2='-',fine_aggregate_3='177',
+        coarse_aggregate_1='692',coarse_aggregate_2='297',coarse_aggregate_3='-',coarse_aggregate_4='-',
+        chemical_admixture_1='2.090',chemical_admixture_2='-',water_cement_ratio='69.0',water_binder_ratio='-',
+        fine_aggregate_ratio='47.7',sludge_solids_ratio='-',recovered_fine_aggregate_ratio='-',
+        recovered_coarse_aggregate_ratio='-',sludge_water_method='-',mix_plan_number='12345678')
+    assert all(data[key]=='' for key in ('recipient','delivery_place','delivery_date','vehicle_number','remarks'))
+    screen.current=None;screen.set_values(data);screen.save()
+    screen.input_print_settings.font.set(sample.NUMERIC_LABEL)
+    screen.input_print_settings.font_selected();screen.save_settings()
+    assert screen.template['input_font_profile']==sample.NUMERIC_PROFILE
+    assert screen.template['input_print_style']=='plain'
+    for _ in range(3):screen.preview_current();root.update()
+    path=directory/'numeric-blend.pdf';core.render_pdf(path,[data],screen.template)
+    with pymupdf.open(path) as doc:
+        assert doc[0].get_pixmap().samples==screen.preview_view.doc[0].get_pixmap().samples
+        spans=[s for b in doc[0].get_text('dict')['blocks'] if b['type']==0 for l in b['lines'] for s in l['spans']]
+        special=[s for s in spans if 'TomeiSample' in s['font']]
+        assert special and all(set(s['text'].replace(' ',''))<=sample.NUMERIC_SUPPORTED for s in special)
+        assert any('BB' in s['text'] and 'TomeiSample' not in s['font'] for s in spans)
+        assert '殿' not in doc[0].get_text()
+        assert '配合計画書NO.' in doc[0].get_text()
+    opaque=dict(screen.template,input_density=1,input_transparency=0)
+    for name,definition in [('numeric-blend-opaque',opaque),('numeric-blend-printer',dict(opaque,input_print_style='printer')),
+                            ('numeric-blend-standard',dict(opaque,input_font_profile='',input_print_style='plain'))]:
+        path=directory/(name+'.pdf');core.render_pdf(path,[data],definition)
+        with pymupdf.open(path) as doc:doc[0].get_pixmap(dpi=220,alpha=False).save(directory/(name+'.png'))
+    core.render_pdf(directory/'numeric-all-blank.pdf',[core.blank(opaque)],opaque)
+    with pymupdf.open(directory/'numeric-all-blank.pdf') as doc:
+        assert '配合計画書' not in doc[0].get_text() and '殿' not in doc[0].get_text()
+    multi=copy.deepcopy(opaque);multi['page_layout'].update(paper='A4',rows=2,columns=2,scale='fit')
+    core.render_pdf(directory/'numeric-blend-four-up.pdf',[data]*5,multi)
+    with pymupdf.open(directory/'numeric-blend-four-up.pdf') as doc:
+        assert [len(page.search_for('納入書（計画）')) for page in doc]==[4,1]
+        for page in doc:
+            notices=sorted(page.search_for('納入書（計画）'),key=lambda r:(r.y0,r.x0))
+            images=sorted(page.get_image_rects(page.get_images()[0][0]),key=lambda r:(r.y0,r.x0))
+            assert all(n.y0>i.y1 and page.rect.contains(n) for n,i in zip(notices,images))
+        doc[0].get_pixmap(dpi=160,alpha=False).save(directory/'numeric-blend-four-up.png')
+    result.update(numeric_font_profile=sample.NUMERIC_PROFILE,numeric_record_id=screen.current['id'],
+        numeric_previews=3,numeric_preview_pdf_pixel_difference=0,construction_fields_empty=True,
+        all_blank_pdf=True,numeric_four_up=True,nonnumeric_windows_fallback=True,
+        mix_plan_label_only_when_value_present=True,numeric_style='plain')
+
+
 def sample_font_check(screen,root,directory,result):
     import tomei_print_font as sample
     asset=sample.validated_file()
@@ -158,6 +209,7 @@ def run(destination=None):
                     result.update(saved_transparency=.3,transparency_previews=3,
                                   transparency_preview_pdf_pixel_difference=0,transparency_four_up=True)
                     sample_font_check(screen,root,directory,result)
+                    numeric_plan_check(screen,root,directory,result)
                 evidence['forms'][row['id']]=result
             finally:
                 if screen:screen.store.close()
@@ -174,10 +226,14 @@ def run(destination=None):
                     result['transparency_survives_reopen']=True
                     if result.get('sample_font_bundled'):
                         import tomei_print_font as sample
-                        assert screen.template['input_font_profile']==sample.PROFILE
-                        assert screen.input_print_settings.font.get()==sample.LABEL
-                        saved=screen.store.get(result['sample_record_id'])['data']
-                        assert saved['vehicle_number']=='B-2030A'
+                        profile=result.get('numeric_font_profile',sample.PROFILE)
+                        assert screen.template['input_font_profile']==profile
+                        assert screen.input_print_settings.font.get()==sample.PROFILES[profile][0]
+                        saved=screen.store.get(result.get('numeric_record_id',result['sample_record_id']))['data']
+                        if result.get('numeric_font_profile'):
+                            assert all(saved[key]=='' for key in ('recipient','delivery_place','delivery_date','vehicle_number','remarks'))
+                            result['numeric_profile_and_empty_construction_survive_reopen']=True
+                        else:assert saved['vehicle_number']=='B-2030A'
                         screen.set_values(saved)
                         result['sample_font_survives_reopen']=True
                 screen.preview_current();root.update()

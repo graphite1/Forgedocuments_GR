@@ -1107,7 +1107,8 @@
       "required": false,
       "print": true,
       "input": true,
-      "wrap": false
+      "wrap": false,
+      "display_prefix": "配合計画書NO. "
     },
     {
       "id": "recipient_sign_status",
@@ -2268,7 +2269,7 @@
   "calculation": {
     "enabled_by_default": false
   },
-  "entry_notice": "納入計画用です。予定値を入力し、各伝票に納入書（計画）を表示します。署名と着時刻は空欄です。背景未準備でも入力・保存・CSVは使えます。",
+  "entry_notice": "納入計画用です。工事情報・宛先は任意で、空欄のままプレビュー・PDF出力できます。配合欄と配合計画書番号は確認できた予定値だけ入力してください。未入力をダミー値で埋めません。署名と着時刻は空欄です。",
   "settings_notice": "背景は未確認の候補も保存できます。郵便番号・5選択肢・青印字の欠け・手書き除外を確認し、誤字の未解決時は正式出力しません。各伝票の納入書（計画）表示を保持します。",
   "render_mode": "background",
   "background_revision": 1,

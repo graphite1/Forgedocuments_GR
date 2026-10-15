@@ -543,6 +543,12 @@ def render_pdf(path,records,t,validate_records=True):
                             c.restoreState()
                     continue
                 if not value: continue
+                prefix=f.get('display_prefix','')
+                if prefix and value!='-':
+                    import unicodedata
+                    normalized=lambda text:unicodedata.normalize('NFKC',str(text)).strip().casefold()
+                    if not normalized(value).startswith(normalized(prefix)):
+                        value=prefix+str(value)
                 suffix=f.get('display_suffix','')
                 if suffix and value!='-' and not str(value).rstrip().endswith(suffix.strip()):
                     value=str(value)+suffix

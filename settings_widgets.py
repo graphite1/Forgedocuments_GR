@@ -16,17 +16,21 @@ class InputPrintSettings(ttk.LabelFrame):
             path=Path(os.environ.get('WINDIR','C:/Windows'))/'Fonts'/name
             if path.is_file():self.fonts[label]=str(path)
         self.font=tk.StringVar();self.style=tk.StringVar()
-        from tomei_print_font import PROFILE,LABEL,validated_file
+        from tomei_print_font import PROFILE,PROFILES,validated_file
         self.sample_profile=PROFILE
-        if template.get('form_id')=='tomei_taiheiyo' and (validated_file() or template.get('input_font_profile')==PROFILE):
-            label=LABEL if validated_file() else LABEL+'（未同梱）'
-            self.fonts[label]='@'+PROFILE
+        self.sample_profiles=set(PROFILES)
+        available=validated_file() if template.get('form_id')=='tomei_taiheiyo' else None
+        if template.get('form_id')=='tomei_taiheiyo':
+            for profile,(label,supported) in PROFILES.items():
+                if available or template.get('input_font_profile')==profile:
+                    self.fonts[label if available else label+'（未同梱）']='@'+profile
         ttk.Label(self,text='入力の書体').grid(row=0,column=0,sticky='w')
         self.font_selector=ttk.Combobox(self,textvariable=self.font,state='readonly',width=25)
         self.font_selector.grid(row=0,column=1,sticky='w')
         ttk.Label(self,text='印字').grid(row=0,column=2,sticky='w',padx=8)
         self.styles={'伝票印字':'printer','通常':'plain','従来の太字':'smooth','従来のドット':'impact'}
         ttk.Combobox(self,textvariable=self.style,values=list(self.styles),state='readonly',width=15).grid(row=0,column=3)
+        self.font_selector.bind('<<ComboboxSelected>>',self.font_selected)
         self.vars={}
         self.defaults={'input_density':1,'input_transparency':0,'input_width_scale':1,'input_tracking_em':0,'input_weight_em':.018}
         for i,(key,label) in enumerate((('input_transparency','透過度 0〜100%'),('input_density','文字色の濃さ 35〜100%'),
@@ -36,22 +40,28 @@ class InputPrintSettings(ttk.LabelFrame):
             v=tk.StringVar();self.vars[key]=v;ttk.Entry(self,textvariable=v,width=10).grid(row=row,column=col+1,sticky='w')
         ttk.Label(self,text='透過度：0%=不透明、100%=透明。文字色の濃さはグレー色の調整です。\n字間・線の太さは文字サイズに対する割合です。背景・固定文字は変えません。').grid(row=4,column=0,columnspan=4,sticky='w')
         self.load(template)
-        if '@'+self.sample_profile in self.fonts.values():
-            ttk.Label(self,text='専用書体は数字・小数点・ハイフン・Bに適用し、他の文字は標準書体で印字します。').grid(row=5,column=0,columnspan=4,sticky='w')
+        if any('@'+profile in self.fonts.values() for profile in self.sample_profiles):
+            ttk.Label(self,text='数字専用は0–9・小数点・ハイフンだけに適用し、他は標準書体です。\n数字専用を選ぶと通常印字を初期選択します。太さ・透過度は調整できます。').grid(row=5,column=0,columnspan=4,sticky='w')
+
+    def font_selected(self,event=None):
+        from tomei_print_font import NUMERIC_PROFILE
+        if self.fonts.get(self.font.get())=='@'+NUMERIC_PROFILE:
+            self.style.set(next(label for label,value in self.styles.items() if value=='plain'))
 
     def load(self,template):
         path=template.get('input_font_path','')
         if path not in self.fonts.values():self.fonts['現在の指定']=path
         self.font_selector['values']=list(self.fonts)
-        selected='@'+self.sample_profile if template.get('form_id')=='tomei_taiheiyo' and template.get('input_font_profile')==self.sample_profile else path
+        profile=template.get('input_font_profile')
+        selected='@'+profile if template.get('form_id')=='tomei_taiheiyo' and profile in self.sample_profiles else path
         self.font.set(next(label for label,value in self.fonts.items() if value==selected))
         self.style.set(next((label for label,value in self.styles.items() if value==template.get('input_print_style','plain')),'通常'))
         for key,v in self.vars.items():v.set(f"{float(template.get(key,self.defaults[key]))*100:g}")
 
     def apply(self,template):
         selected=self.fonts[self.font.get()]
-        if selected=='@'+self.sample_profile:
-            template['input_font_profile']=self.sample_profile
+        if selected.startswith('@') and selected[1:] in self.sample_profiles:
+            template['input_font_profile']=selected[1:]
         else:
             template['input_font_path']=selected
             template.pop('input_font_profile',None)
