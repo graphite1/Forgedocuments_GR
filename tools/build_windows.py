@@ -31,10 +31,10 @@ def public_asset_args():
 
 
 def approved_font_args():
-    from tomei_print_font import validated_file,font_file
-    source=validated_file()
-    if source is None:raise ValueError('Approved numeric subset is missing')
-    return ['--add-data',str(source)+':assets','--add-data',str(font_file().with_suffix('.json'))+':assets']
+    from tomei_print_font import bundle_files
+    args=[]
+    for source in bundle_files():args+=['--add-data',str(source)+':assets']
+    return args
 
 def build(output,unsigned=False,private_background=None,sample_print_font=None,prerelease_preview=False,local_confirmation=False):
     if sys.platform!='win32':raise RuntimeError('Windows EXEはWindows環境でビルド・診断してください。Linux製の実行ファイルは配布しません')
@@ -89,7 +89,7 @@ def build(output,unsigned=False,private_background=None,sample_print_font=None,p
     if prerelease_preview:
         if not unsigned:raise ValueError('This preview workflow is for unsigned validation builds')
         with (dest/'README.txt').open('a',encoding='utf-8-sig') as note:
-            note.write('\nUnsigned prerelease for validation. The numeric font is a limited raster-derived subset; other characters use the selected Windows font. This ZIP is not a signed automatic-update package.\n')
+            note.write('\nUnsigned prerelease for validation. The print font contains 46 source-observed raster-derived characters; unsupported characters use the selected Windows font. The inferred check mark is separate. This ZIP is not a signed automatic-update package.\n')
         files['README.txt']=hashlib.sha256((dest/'README.txt').read_bytes()).hexdigest()
     if local_confirmation:
         with (dest/'README.txt').open('a',encoding='utf-8-sig') as note:

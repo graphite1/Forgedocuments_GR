@@ -105,9 +105,9 @@ class PublicBackgroundChecks(unittest.TestCase):
                         for image,notice in zip(images,notices):
                             self.assertGreater(notice.y0,image.y1);self.assertTrue(page.rect.contains(notice))
                         spans=[s for b in page.get_text('dict')['blocks'] if b['type']==0 for l in b['lines'] for s in l['spans']]
-                        recipient=[s for s in spans if '確認用宛名' in s['text']]
+                        recipient=[l['spans'] for b in page.get_text('dict')['blocks'] if b['type']==0 for l in b['lines'] if '確認用宛名' in ''.join(s['text'] for s in l['spans'])]
                         self.assertEqual(len(recipient),len(images))
-                        self.assertTrue(all(s['color']==0 and s['text'].count('殿')==1 for s in recipient))
+                        self.assertTrue(all(all(s['color']==0 for s in line) and ''.join(s['text'] for s in line).count('殿')==1 for line in recipient))
                 self.assertEqual(data,before)
 
     def test_old_profile_upgrades_once_and_preserves_custom_recipient_box_and_values(self):

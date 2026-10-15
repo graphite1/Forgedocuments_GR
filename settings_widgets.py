@@ -16,12 +16,13 @@ class InputPrintSettings(ttk.LabelFrame):
             path=Path(os.environ.get('WINDIR','C:/Windows'))/'Fonts'/name
             if path.is_file():self.fonts[label]=str(path)
         self.font=tk.StringVar();self.style=tk.StringVar()
-        from tomei_print_font import PROFILE,PROFILES,validated_file
+        from tomei_print_font import PROFILE,PROFILES,profile_file
         self.sample_profile=PROFILE
         self.sample_profiles=set(PROFILES)
-        available=validated_file() if template.get('form_id')=='tomei_taiheiyo' else None
+        available=None
         if template.get('form_id')=='tomei_taiheiyo':
             for profile,(label,supported) in PROFILES.items():
+                available=profile_file(profile)
                 if available or template.get('input_font_profile')==profile:
                     self.fonts[label if available else label+'（未同梱）']='@'+profile
         ttk.Label(self,text='入力の書体').grid(row=0,column=0,sticky='w')
@@ -41,7 +42,7 @@ class InputPrintSettings(ttk.LabelFrame):
         ttk.Label(self,text='透過度：0%=不透明、100%=透明。文字色の濃さはグレー色の調整です。\n字間・線の太さは文字サイズに対する割合です。背景・固定文字は変えません。').grid(row=4,column=0,columnspan=4,sticky='w')
         self.load(template)
         if any('@'+profile in self.fonts.values() for profile in self.sample_profiles):
-            ttk.Label(self,text='基本の専用印字は0–9・小数点・ハイフン・Bに適用。未収録の字は標準書体です。\n数字専用を選ぶと通常印字を初期選択します。太さ・透過度は調整できます。').grid(row=5,column=0,columnspan=4,sticky='w')
+            ttk.Label(self,text='基本は採取46字（数字・角文・殿・普通・配合計画書NO等）。未収録字は標準書体です。\n数字専用を選ぶと通常印字を初期選択します。太さ・透過度は調整できます。').grid(row=5,column=0,columnspan=4,sticky='w')
 
     def font_selected(self,event=None):
         from tomei_print_font import NUMERIC_PROFILE

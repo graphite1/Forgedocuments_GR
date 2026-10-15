@@ -80,13 +80,13 @@ from app_storage import AppStorage
 from form_registry import catalog,default_definition
 from tomei_preset import with_bundled_preset,public_bundle_files
 from tomei_screen import DEFINITION
-from tomei_print_font import validated_file
+from tomei_print_font import validated_file,validated_observed_file
 from aktio.asset_files import bundle_files
 from aktio.state import SessionStore
 from aktio.receipt import render_receipt
 from aktio.planning import make_plan
 assert core.BASE.resolve()==Path.cwd().resolve()
-assert validated_file() is not None
+assert validated_file() is not None and validated_observed_file() is not None
 assert len(bundle_files())==4
 assert len(public_bundle_files())==2
 pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))

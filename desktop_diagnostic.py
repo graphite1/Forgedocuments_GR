@@ -156,6 +156,11 @@ def run(destination=None):
         for row in catalog():
             directory=output/row['id']
             directory.mkdir(exist_ok=True)
+            if row['id']=='aktio_receipt':
+                from aktio.diagnostics import check_data
+                with tempfile.TemporaryDirectory(prefix='aktio-',dir=directory) as work:
+                    evidence['forms'][row['id']]=check_data(Path(work)/'checks')
+                continue
             root=tk.Tk();root.withdraw();screen=None
             try:
                 screen=open_screen(row,root,directory/'records')
@@ -190,9 +195,9 @@ def run(destination=None):
                                     assert notice.y0>image.y1
                                     assert page.rect.contains(notice)
                                 spans=[s for b in page.get_text('dict')['blocks'] if b['type']==0 for l in b['lines'] for s in l['spans']]
-                                recipients=[s for s in spans if '検証用宛名' in s['text']]
+                                recipients=[l['spans'] for b in page.get_text('dict')['blocks'] if b['type']==0 for l in b['lines'] if '検証用宛名' in ''.join(s['text'] for s in l['spans'])]
                                 assert len(recipients)==count
-                                assert all(s['color']==0 and '殿' in s['text'] for s in recipients)
+                                assert all(all(s['color']==0 for s in line) and '殿' in ''.join(s['text'] for s in line) for line in recipients)
                             if index==0:page.get_pixmap(dpi=160,alpha=False).save(directory/(Path(name).stem+'.png'))
                     result[name]={'sha256':hashlib.sha256((directory/name).read_bytes()).hexdigest(),'pages':len(counts)}
                 if row['id']=='ac_toyoake':

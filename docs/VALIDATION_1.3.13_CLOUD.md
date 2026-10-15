@@ -1,4 +1,6 @@
-# 1.3.13 cloud candidate validation
+# 1.3.13 cloud candidate validation at 81c41ad (historical)
+
+This records the first source-only candidate. The observed 46-character font and CI/diagnostic changes were subsequently implemented; see WINDOWS_PREVIEW_CI.md and the current release validation JSON for fresh results.
 
 Base: GitHub release `v1.3.12-preview.1`, actual tag/release target and work-branch head `46108b02cb7198c67e291a001704cd4d49c082fe`. `main` remains `0def073`. PR #2 was read as open, draft, unmerged. Work continues on a separate candidate branch.
 

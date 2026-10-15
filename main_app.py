@@ -112,6 +112,10 @@ def acquire_instance():
     return True
 
 def main():
+    if '--headless-diagnostic' in sys.argv:
+        from headless_diagnostic import run
+        if '--diagnostic-output' not in sys.argv:raise ValueError('Specify --diagnostic-output for isolated evidence')
+        run(sys.argv[sys.argv.index('--diagnostic-output')+1],cid_font='--cid-font' in sys.argv);return
     if '--diagnostic' in sys.argv:diagnostic();return
     if '--apply-update' in sys.argv:updates.apply_transaction(sys.argv[sys.argv.index('--apply-update')+1]);return
     if updates.route_to_current():return

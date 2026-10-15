@@ -25,6 +25,10 @@ def _exercise(root,home,directory):
         assert row['id'] in home.screens,row['id']
         screen=home.screens[row['id']];screen.root.withdraw()
         assert screen.store.directory==home.storage.root/'data'/row['id']
+        if row['id']=='aktio_receipt':
+            from aktio.diagnostics import exercise_screen
+            saved[row['id']]=exercise_screen(screen,root);previews[row['id']]=0
+            continue
         values=_values(screen.template);screen.set_values(values);screen.save()
         saved[row['id']]=copy.deepcopy(values)
         if row['id']=='ac_toyoake':
@@ -55,6 +59,9 @@ def _exercise(root,home,directory):
         for row in rows:
             screen=home.screens[row['id']];screen.close();home.open(row);root.update()
             screen=home.screens[row['id']];screen.root.withdraw()
+            if row['id']=='aktio_receipt':
+                assert screen.document()==saved[row['id']]
+                continue
             records=screen.store.list()
             assert records[-1]['data']==saved[row['id']]
             assert {k:screen.template.get(k) for k in colors[row['id']]}==colors[row['id']]
@@ -103,7 +110,7 @@ def run(directory):
         try:
             for row in catalog():home.open(row)
             assert not home.screens
-            assert len(errors)==2 and all('書き込み可能' in e and '保存先の指定は不要' in e for e in errors)
+            assert len(errors)==len(catalog()) and all('書き込み可能' in e and '保存先の指定は不要' in e for e in errors)
             assert (blocked/'data').read_text()=='occupied'
         finally:home.dispose()
         results.update(no_storage_picker=True,blocked_write_clear_error=True,blocked_write_no_fallback=True)

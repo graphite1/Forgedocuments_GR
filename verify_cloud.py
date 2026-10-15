@@ -29,6 +29,8 @@ from verify_app_storage import AppStorageChecks
 from verify_theme_headless import ThemeHeadlessChecks
 from verify_aktio import AktioChecks,AktioScreenHeadlessChecks
 from verify_tomei_font_marks import TomeiFontMarkChecks
+from verify_diagnostics_headless import DiagnosticHeadlessChecks,AktioDiagnosticControllerChecks
+from verify_preview_release import PreviewReleaseChecks
 
 
 class KeyFreePlatformChecks(PlatformChecks):
@@ -47,11 +49,12 @@ class KeyFreePlatformChecks(PlatformChecks):
 
 def suite():
     loader=unittest.defaultTestLoader
-    return unittest.TestSuite(loader.loadTestsFromTestCase(c) for c in (Verification,KeyFreePlatformChecks,Regressions,LayoutAndInputs,TomeiChecks,BackgroundChecks,FixedFooterChecks,PublicBackgroundChecks,InputPrintChecks,TransparencyChecks,FontRunChecks,SampleFontChecks,NumericPlanChecks,BlueInkChecks,AppStorageChecks,ThemeHeadlessChecks,AktioChecks,AktioScreenHeadlessChecks,TomeiFontMarkChecks))
+    return unittest.TestSuite(loader.loadTestsFromTestCase(c) for c in (Verification,KeyFreePlatformChecks,Regressions,LayoutAndInputs,TomeiChecks,BackgroundChecks,FixedFooterChecks,PublicBackgroundChecks,InputPrintChecks,TransparencyChecks,FontRunChecks,SampleFontChecks,NumericPlanChecks,BlueInkChecks,AppStorageChecks,ThemeHeadlessChecks,AktioChecks,AktioScreenHeadlessChecks,TomeiFontMarkChecks,DiagnosticHeadlessChecks,AktioDiagnosticControllerChecks,PreviewReleaseChecks))
 
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--cid-font',action='store_true');parser.add_argument('--headless',action='store_true',help='Never create a Tk window; GUI-dependent tests are explicitly skipped')
+    parser.add_argument('--report',type=Path,help='Write public-safe aggregate test evidence')
     args=parser.parse_args()
     from contextlib import ExitStack
     stack=ExitStack()
@@ -68,4 +71,6 @@ if __name__=='__main__':
             result=unittest.TextTestRunner(verbosity=2).run(suite())
     else:result=unittest.TextTestRunner(verbosity=2).run(suite())
     stack.close()
+    if args.report:
+        core.atomic_json(args.report,{'status':'passed' if result.wasSuccessful() else 'failed','total':result.testsRun,'passed':result.testsRun-len(result.skipped)-len(result.failures)-len(result.errors),'skipped':len(result.skipped),'failures':len(result.failures),'errors':len(result.errors),'headless':args.headless,'cid_substitute':args.cid_font,'skip_reasons':sorted(set(reason for test,reason in result.skipped))})
     raise SystemExit(not result.wasSuccessful())

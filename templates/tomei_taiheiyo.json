@@ -2317,5 +2317,6 @@
   "coordinate_profiles": [
     "tomei_taiheiyo.generated-20261014.coordinates.json"
   ],
-  "input_font_profile": "tomei-sample-digits-v1"
+  "input_font_profile": "tomei-observed-46-v2",
+  "observed_font_revision": 1
 }

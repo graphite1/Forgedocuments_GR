@@ -102,7 +102,7 @@ class TomeiChecks(unittest.TestCase):
             self.assertIn('納入書（計画）',text);self.assertNotIn('FAX',text)
             spans=[s for b in doc[0].get_text('dict')['blocks'] if b['type']==0 for line in b['lines'] for s in line['spans']]
             for value in ('TEST_SITE','0012','005.500','TEST_ASSOCIATION'):
-                self.assertEqual(next(s['color'] for s in spans if value in s['text']),0)
+                self.assertIn(value,''.join(s['text'] for s in spans if s['color']==0))
             self.assertEqual(len(doc[0].get_images()),1)
             from background_assets import load_background
             self.assertIn((75,175,185),list(load_background(self.t).getdata()))

@@ -1,0 +1,15 @@
+{
+  "kind": "source-observed raster-derived 46-character prototype",
+  "sha256": "24112fd704e2ac9dfc6ca4e721c54f2086125b08be8f087a69b12b17df827836",
+  "characters": "()-.0123456789BNO事備公刈動合園場工市整文普書株殿河画第総角計谷車通運配野駐",
+  "character_count": 46,
+  "original_13_outlines_and_decoded_advances_unchanged": true,
+  "source_inventory_available": true,
+  "source_pdfs_rechecked_in_cloud": false,
+  "source_pixels_rechecked_in_cloud": false,
+  "inferred_font_characters": 0,
+  "not_a_recovered_original_vector_font": true,
+  "public_distribution": "Current user authorized application integration and unsigned GitHub prerelease; original PDFs, crops and transaction records excluded",
+  "handoff": "Parent supplied bytes after formal Library acquisition; size and SHA256 verified locally",
+  "unsupported": "Characters outside explicit coverage use the selected fallback font; checks are separately identified inferred strokes"
+}

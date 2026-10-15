@@ -6,6 +6,7 @@ if __name__=='__main__':
     import sys
     try:main()
     except Exception as e:
+        if '--headless-diagnostic' in sys.argv:sys.exit(1)
         if '--diagnostic' in sys.argv:raise
         import tkinter as tk
         from tkinter import messagebox
