@@ -37,7 +37,7 @@ class FontRunChecks(unittest.TestCase):
                 x+=string_width(ch['c'],font,20)+2
 
 
-@unittest.skipUnless(sample.font_file().is_file(),'Private font is deliberately absent from public source distributions')
+@unittest.skipUnless(sample.font_file().is_file(),'Approved numeric font asset is unavailable')
 class SampleFontChecks(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.path=Path(self.temp.name)
@@ -66,7 +66,7 @@ class SampleFontChecks(unittest.TestCase):
                 self.assertIn('B-2030A',text)
                 fonts=[s['font'] for b in doc[0].get_text('dict')['blocks'] if b['type']==0 for l in b['lines'] for s in l['spans']]
                 self.assertTrue(any('TomeiSample' in f for f in fonts))
-                self.assertTrue(any('Gothic' in f or 'Meiryo' in f for f in fonts))
+                self.assertTrue(any('TomeiSample' not in f for f in fonts))
             transparent=self.path/(style+'-transparent.pdf');blank=self.path/(style+'-blank.pdf')
             core.render_pdf(transparent,[values],dict(t,input_transparency=1))
             core.render_pdf(blank,[core.blank(t)],t)

@@ -78,3 +78,7 @@ Windowsビルドは公開背景を既定で同梱し、私有背景オプショ�
 利用者は数字0–9とハイフンを最優先とし、文字追加を止めた。既存13／46／74字フォントを保持し、原本の欠けを推測で埋めない。`tomei-numeric-only-v2` は同じ検証済み13字TTFから数字・小数点・ハイフンだけを使い、それ以外は従来の選択書体へ切り替える。明示的な選択時だけ通常印字を初期選択し、標準書体と従来の設定は保持する。
 
 工事情報・宛先は任意であり、空欄でも配合欄・全空欄のプレビューとPDF出力が可能である。ダミー値で補完しない。新規テンプレートの配合計画書番号は値があるときだけ表示用見出しを付け、元の保存値は変えない。既存の独自テンプレートへ見出しを自動追加しない。数字・ハイフン・配合入力・単票／四面・枠外の計画表示・空欄と書体選択の再開保持を検証する。1.3.9/序10は本人確認用の未署名ビルドであり、Git push・公開・Release・PRマージは行わない。
+
+## 1.3.10: approved public numeric-font prerelease
+
+On 2026-10-15 the user explicitly authorized development-only Fontspector and public GitHub prerelease distribution of the approved 13-glyph numeric font within the application. This supersedes earlier private-only restrictions for that numeric subset and this confirmation release. The repaired copy in assets preserves all outlines, character mappings and decoded advances. The 46/74-glyph experiments, original PDFs, crops, transaction data, user databases, private diagnostics and secrets remain excluded. New release/version only; no tag moves, main merge, credential/security changes or API-denial bypass. Fontspector stays ignored under .dev-tools and is not bundled. GitHub prerelease is unsigned, nonlatest, distinct from signed GR Release Hub updates.

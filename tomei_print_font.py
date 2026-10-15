@@ -1,12 +1,12 @@
-"""Private, optional print-font prototype. Never install it into Windows."""
+"""Approved numeric subset, loaded locally without Windows font installation."""
 import hashlib
 from pathlib import Path
 import sys
 
 PROFILE='tomei-sample-digits-v1'
 LABEL='生コン専用印字（数字・.-B／他は標準）'
-FILENAME='tomei-sample-digits.ttf'
-SHA256='e65eb34b517e6d4bd97713507800cbef8b24cca0f1fc3c0cfc21b485873c342d'
+FILENAME='tomei-sample-digits-qa.ttf'
+SHA256='9511a838776102e226de15a6d5f5f6f33c792e8a4bcd7e30657907b4d0cf7997'
 SUPPORTED=frozenset('0123456789.-B')
 NUMERIC_PROFILE='tomei-numeric-only-v2'
 NUMERIC_LABEL='数字・.-専用／他は標準'
@@ -16,7 +16,7 @@ PROFILES={PROFILE:(LABEL,SUPPORTED),NUMERIC_PROFILE:(NUMERIC_LABEL,NUMERIC_SUPPO
 
 def font_file():
     root=Path(getattr(sys,'_MEIPASS',Path(__file__).resolve().parent))
-    return root/'private-assets'/FILENAME
+    return root/'assets'/FILENAME
 
 
 def validated_file(path=None):
