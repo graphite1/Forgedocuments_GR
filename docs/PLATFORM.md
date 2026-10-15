@@ -56,3 +56,7 @@ Python 3.14で `requirements-build.txt` を導入し、`python verify.py` と `p
 署名秘密鍵はWindows資格情報ストアの `Forgedocuments_GR/release-signing` に保存します。秘密鍵をソース・ファイル・配布物へ出力しません。公開鍵は `update_config.json` に固定します。別PCへの署名鍵移行は別途対応します。
 
 公開先は `https://gr-release-hub.rinntyu2000.chatgpt.site`、アプリIDは `forgedocuments-gr`。公開済みZIPは差し替えず、新しい版・通番を使用します。
+
+## 1.3.5の公開背景例外
+
+利用者の明示承認により、生コンの空欄の計画用背景（社名・住所・JIS図形と計画表示）と専用設定をassets/へ追加した。以前の「原画像を公開しない」という一般方針の限定例外であり、取引値・署名・DB・原本PDF・AC見本は含めない。画像と設定はソースZIPとWindowsビルドで共に同梱し、生コンの新しい保存先で初回から表示する。既存設定は自動置換しない。1.3.5はソース版の確認用候補で、Windows EXE作成・実機検証・正式署名配布は別途必要。

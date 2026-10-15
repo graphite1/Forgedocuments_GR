@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "image": "tomei-plan-background.png",
+  "image_sha256": "e036d4f785c27270612c3242532e9ba31131465a14c8e54a5ac33709fea14f68",
+  "image_size_px": [
+    1070,
+    1470
+  ],
+  "kind": "corrected_blue",
+  "reviewed": true,
+  "public_distribution_approved": true,
+  "approval_date": "2026-10-14",
+  "document_purpose": "delivery_plan",
+  "required_notice": "納入書（計画）",
+  "notice_in_image": true,
+  "transaction_values_included": false,
+  "handwriting_or_signatures_included": false,
+  "layout_profile": "generated-20261014",
+  "crop_pixels_after_rotation": [
+    26,
+    33,
+    1044,
+    1450
+  ],
+  "width_mm": 118.3,
+  "height_mm": 164.6670923379175,
+  "coordinate_width": 1018,
+  "coordinate_height": 1417,
+  "coordinate_definition": "tomei_taiheiyo.generated-20261014.coordinates.json",
+  "source_corrected_sha256": "a6bee70ebe7ca443b1b6e98b710b4df13c15098dbd1fc67ad69c4fb32127dafb",
+  "original_pixel_fidelity": false,
+  "certification_text": "GB0407016 retained by user instruction; certification validity not verified"
+}

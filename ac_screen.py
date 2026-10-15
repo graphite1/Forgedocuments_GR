@@ -5,22 +5,33 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from core import *
 from pdf_view import PDFView, preview_window
+from preview_files import generated_pdf
+from ac_defaults import FORM_ID, migrate_template
+from ac_footer import validate_fixed_footer
+from settings_widgets import LayoutSettings, FieldDefaultsSettings
+from record_batches import summary
+from desktop_theme import configure_theme
 
 class App:
     def __init__(self,root,directory):
-        self.root=root; self.store=Store(directory); self.template=self.store.template()
+        configure_theme(root)
+        self.root=root; self.store=Store(directory,default_template=load_template(),form_id=FORM_ID); self.template=self.store.template()
+        migrated=migrate_template(self.template,FORM_ID)
+        validate_fixed_footer(migrated)
+        if migrated!=self.template:self.store.set_template(migrated)
+        self.template=migrated
         self.current=None;self.loaded_values=None;self.suspend=False;self.changed=False;self.widgets={};self.vars={}
         root.title('Forgedocuments GR｜エーシー帳票');root.geometry('1220x840');root.minsize(880,640)
-        style=ttk.Style();style.theme_use('clam');style.configure('TButton',padding=(9,5));style.configure('TNotebook.Tab',padding=(15,7))
         top=ttk.Frame(root,padding=10);top.pack(fill='x')
         ttk.Label(top,text='運搬明細書',font=('Yu Gothic UI',19,'bold')).pack(side='left')
-        ttk.Button(top,text='保存先を切替',command=self.switch_folder).pack(side='right')
+        ttk.Button(top,text='保存フォルダーを開く',command=lambda:self.guarded(self.open_storage)).pack(side='right')
         ttk.Button(top,text='バックアップ',command=self.backup).pack(side='right',padx=6)
         self.notebook=ttk.Notebook(root);self.notebook.pack(fill='both',expand=True,padx=10,pady=4)
         self.entrytab=ttk.Frame(self.notebook);self.listtab=ttk.Frame(self.notebook);self.settingtab=ttk.Frame(self.notebook)
-        for frame,name in [(self.entrytab,'入力'),(self.listtab,'一覧・出力'),(self.settingtab,'帳票設定')]:self.notebook.add(frame,text=name)
+        for frame,name in [(self.listtab,'一覧・一括出力'),(self.entrytab,'単票入力'),(self.settingtab,'帳票設定')]:self.notebook.add(frame,text=name)
         self.status=tk.StringVar();ttk.Label(root,textvariable=self.status,padding=8).pack(fill='x')
         self.build_entry();self.build_list();self.build_settings();self.new(check=False);self.refresh()
+        self.notebook.select(self.listtab)
         root.protocol('WM_DELETE_WINDOW',self.close)
         root.bind('<Control-s>',lambda e:self.guarded(self.save))
 
@@ -60,7 +71,8 @@ class App:
             if f['group'] not in groups:
                 fr=ttk.LabelFrame(form,text=f['group'],padding=9);fr.pack(fill='x',pady=5);fr.columnconfigure(1,weight=1);groups[f['group']]=fr
             fr=groups[f['group']];row=len(fr.grid_slaves())//2
-            ttk.Label(fr,text=f['label']).grid(row=row,column=0,sticky='nw',padx=(0,12),pady=5)
+            fixed=f.get('fixed_value') is not None
+            ttk.Label(fr,text=f['label']+('（固定）' if fixed else '')).grid(row=row,column=0,sticky='nw',padx=(0,12),pady=5)
             if f['type']=='multiline':
                 w=tk.Text(fr,height=3,width=30,undo=True,font=('Yu Gothic UI',10));w.grid(row=row,column=1,sticky='ew',pady=4)
                 w.bind('<<Modified>>',lambda e:self.text_dirty(e));self.widgets[f['id']]=w
@@ -72,7 +84,10 @@ class App:
                 v.trace_add('write',lambda *a:(self.dirty(),self.image_status.set('登録済み' if self.vars['receipt_image'].get() else 'なし')))
             else:
                 v=tk.StringVar();self.vars[f['id']]=v
-                w=ttk.Combobox(fr,textvariable=v,values=f['choices'],state='readonly') if f['type']=='choice' else ttk.Entry(fr,textvariable=v)
+                if f['type']=='choice':w=ttk.Combobox(fr,textvariable=v,values=list(dict.fromkeys(f['choices']+['-'])),state='disabled' if fixed else 'readonly')
+                elif f.get('suggestions'):w=ttk.Combobox(fr,textvariable=v,values=f['suggestions'],state='disabled' if fixed else 'normal')
+                else:w=ttk.Entry(fr,textvariable=v,state='readonly' if fixed else 'normal')
+                self.widgets[f['id']]=w
                 w.grid(row=row,column=1,sticky='ew',pady=4);v.trace_add('write',self.dirty)
         self.preview_view=PDFView(right);self.preview_view.pack(fill='both',expand=True,padx=8,pady=8)
         ttk.Label(right,text='受領印は文字か画像のどちらかを使用。画像がある場合は画像を印字。\n数量単位は空欄から開始。記入例の「台」を自動設定しません。',wraplength=390,justify='left').pack(fill='x',padx=10,pady=12)
@@ -122,6 +137,7 @@ class App:
 
     def build_list(self):
         bar=ttk.Frame(self.listtab,padding=8);bar.pack(fill='x')
+        ttk.Button(bar,text='単票を手入力',command=lambda:self.new()).pack(side='left',padx=4)
         self.query=tk.StringVar();ttk.Label(bar,text='検索').pack(side='left');ttk.Entry(bar,textvariable=self.query,width=25).pack(side='left',padx=5);self.query.trace_add('write',lambda *a:self.refresh())
         self.archived=tk.BooleanVar();ttk.Checkbutton(bar,text='保管済みを表示',variable=self.archived,command=self.refresh).pack(side='left',padx=8)
         ttk.Button(bar,text='再読込',command=self.refresh).pack(side='left');ttk.Button(bar,text='開く',command=lambda:self.guarded(self.open_selected)).pack(side='left',padx=4)
@@ -142,7 +158,15 @@ class App:
         row=ttk.Frame(self.listtab,padding=8);row.pack(fill='x')
         ttk.Button(row,text='CSV取込（列名で対応）',command=lambda:self.guarded(self.import_csv)).pack(side='left',padx=4)
         ttk.Button(row,text='選択行の累計を計算',command=lambda:self.guarded(self.cumulative)).pack(side='left',padx=4)
+        ttk.Button(row,text='選択行の集計確認',command=lambda:self.guarded(self.batch_summary)).pack(side='left',padx=4)
         ttk.Label(row,text='累計は登録順。計算対象と開始値を確認してから実行。').pack(side='left',padx=8)
+
+    def batch_summary(self):
+        result=summary(self.selected(),'number','quantity','quantity_unit')
+        totals='\n'.join(f"{unit or '単位未指定'}: {value}" for unit,value in result['quantity_totals'].items()) or '集計できる数値なし'
+        text=f"件数: {result['count']}\n伝票番号: "+'、'.join(result['numbers'])+f"\n数量合計（単位別）\n{totals}\n数量未入力: {result['missing_quantity_count']}件"
+        if result['duplicates']:text+='\n番号重複: '+', '.join(result['duplicates'])
+        messagebox.showinfo('選択した記録の集計',text,parent=self.root)
 
     def refresh(self):
         if not hasattr(self,'tree'):return
@@ -188,15 +212,26 @@ class App:
         text.configure(state='disabled')
 
     def preview_current(self):
-        data=self.values();temp=self.store.directory/'preview';temp.mkdir(exist_ok=True);pdf=temp/'current.pdf';render_pdf(pdf,[data],self.template)
-        self.preview_view.set_pdf(pdf);self.preview_photo=self.preview_view.photo;self.status.set('保存前の内容をプレビューしました')
+        data=self.values()
+        with generated_pdf(self.store.directory/'preview','current') as pdf:
+            render_pdf(pdf,[data],self.template)
+            self.preview_view.set_pdf(pdf)
+        self.preview_photo=self.preview_view.photo;self.status.set('保存前の内容をプレビューしました')
 
     def output(self,scope,fmt):
         if not self.may_leave():return
         rows=self.selected() if scope=='selected' else self.store.list()
         if not rows:raise ValueError('出力対象がありません')
         if fmt in ('preview','print'):
-            directory=self.store.directory/'preview';directory.mkdir(exist_ok=True);path=directory/('selected.pdf' if scope=='selected' else 'all.pdf')
+            with generated_pdf(self.store.directory/'preview',scope) as path:
+                render_pdf(path,rows,self.template)
+                if fmt=='preview':preview_window(self.root,path)
+                else:
+                    from printing import print_pdf
+                    if not print_pdf(path,self.root.winfo_id()):return
+                self.store.export_log(fmt,path,rows,self.template)
+            self.status.set(f'{len(rows)}件の{fmt.upper()}処理を完了')
+            return
         elif fmt=='png':
             target=filedialog.askdirectory(title='PNGの保存先（専用サブフォルダを新規作成）',parent=self.root)
             if not target:return
@@ -208,10 +243,6 @@ class App:
         if fmt=='csv':csv_export(path,rows,self.template)
         else:render_pdf(path,rows,self.template)
         if fmt=='png':render_pngs(path,directory,dpi=200)
-        if fmt=='preview':preview_window(self.root,path)
-        if fmt=='print':
-            from printing import print_pdf
-            if not print_pdf(path,self.root.winfo_id()):return
         self.store.export_log(fmt,path,rows,self.template);self.status.set(f'{len(rows)}件の{fmt.upper()}処理を完了｜{path}')
 
     def cumulative(self):
@@ -243,50 +274,61 @@ class App:
             seen.add(n)
         note='\nNo.重複: '+', '.join(dups[:15]) if dups else ''
         if not messagebox.askyesno('取込確認',f'{len(data)}件を新規追加します。既存記録と元CSVは変更しません。{note}\n続行しますか？',parent=self.root):return
-        # Whole import is atomic; history is written alongside records.
-        with self.store.db:
-            self.store.db.execute('BEGIN IMMEDIATE')
-            for d in data:
-                rid=uuid.uuid4().hex;payload=json.dumps(d,ensure_ascii=False)
-                self.store.db.execute('INSERT INTO records VALUES(?,?,1,?,?,0)',(rid,payload,now(),now()))
-                self.store.db.execute('INSERT INTO history(record_id,at,reason,before_json,after_json) VALUES(?,?,?,?,?)',(rid,now(),'CSV取込: '+Path(path).name,None,payload))
+        self.store.import_rows(data,self.template,'CSV取込: '+Path(path).name)
         self.refresh();self.status.set(f'{len(data)}件を取り込みました')
 
     def build_settings(self):
-        top=ttk.Frame(self.settingtab,padding=12);top.pack(fill='x')
+        bar=ttk.Frame(self.settingtab,padding=8);bar.pack(side='bottom',fill='x')
+        ttk.Button(bar,text='設定を適用・保存',command=lambda:self.guarded(self.save_settings)).pack(side='left',padx=4)
+        ttk.Button(bar,text='設定JSONを取込',command=lambda:self.guarded(self.import_template)).pack(side='left',padx=4)
+        ttk.Button(bar,text='設定JSONを書出',command=lambda:self.guarded(self.export_template)).pack(side='left',padx=4)
+        canvas=tk.Canvas(self.settingtab,highlightthickness=0);scroll=ttk.Scrollbar(self.settingtab,orient='vertical',command=canvas.yview);canvas.configure(yscrollcommand=scroll.set)
+        scroll.pack(side='right',fill='y');canvas.pack(side='left',fill='both',expand=True)
+        body=ttk.Frame(canvas);win=canvas.create_window((0,0),window=body,anchor='nw')
+        body.bind('<Configure>',lambda e:canvas.configure(scrollregion=canvas.bbox('all')));canvas.bind('<Configure>',lambda e:canvas.itemconfigure(win,width=e.width))
+        top=ttk.Frame(body,padding=12);top.pack(fill='x')
         self.setting_vars={}
-        options=[('width_mm','外周枠の幅 mm'),('height_mm','外周枠の高さ mm'),('original_margin_mm','原本寸法出力の外側余白 mm'),('font_path','日本語フォント TTF/TTC（空欄でWindows標準）')]
+        options=[('width_mm','外周枠の幅 mm'),('height_mm','外周枠の高さ mm'),('font_path','日本語フォント TTF/TTC（空欄でWindows標準）')]
         for row,(key,label) in enumerate(options):
             ttk.Label(top,text=label).grid(row=row,column=0,sticky='w',pady=5)
             v=tk.StringVar(value=str(self.template.get(key,'')));self.setting_vars[key]=v;ttk.Entry(top,textvariable=v,width=55).grid(row=row,column=1,sticky='ew',pady=5)
-        self.mode=tk.StringVar(value=self.template['page_mode']);ttk.Label(top,text='出力ページ').grid(row=4,column=0,sticky='w')
-        modes=ttk.Frame(top);modes.grid(row=4,column=1,sticky='w')
-        ttk.Radiobutton(modes,text='A4中央・実寸100%',variable=self.mode,value='A4').pack(side='left');ttk.Radiobutton(modes,text='原本寸法',variable=self.mode,value='original').pack(side='left',padx=8)
+        self.mode=tk.StringVar(value=self.template['page_mode'])
         self.ink_style=tk.StringVar(value=self.template.get('input_print_style','impact'))
         ttk.Label(top,text='青文字の印字').grid(row=5,column=0,sticky='w',pady=5)
         inks=ttk.Frame(top);inks.grid(row=5,column=1,sticky='w')
         ttk.Radiobutton(inks,text='ドット印字',variable=self.ink_style,value='impact').pack(side='left')
         ttk.Radiobutton(inks,text='通常の太字',variable=self.ink_style,value='smooth').pack(side='left',padx=8)
-        ttk.Label(top,text='実寸はスキャン換算の暫定値。紙原本の実測値が分かれば修正してください。\n原本寸法ページは、枠線の欠けを防ぐため指定の外側余白を追加します。',wraplength=900).grid(row=6,column=0,columnspan=2,sticky='w',pady=8)
-        bar=ttk.Frame(self.settingtab,padding=8);bar.pack(fill='x')
-        ttk.Button(bar,text='設定を適用・保存',command=lambda:self.guarded(self.save_settings)).pack(side='left',padx=4)
-        ttk.Button(bar,text='設定JSONを取込',command=lambda:self.guarded(self.import_template)).pack(side='left',padx=4)
-        ttk.Button(bar,text='設定JSONを書出',command=lambda:self.guarded(self.export_template)).pack(side='left',padx=4)
-        ttk.Label(self.settingtab,text='下のJSONで項目ごとの印字有無・文字サイズ・位置・必須・桁数・上限・固定文を変更できます。\n項目ID・型・追加削除を変更した場合は、別帳票用の画面改修も必要です。適用前にバックアップを推奨。',padding=8).pack(fill='x')
-        box=ttk.Frame(self.settingtab);box.pack(fill='both',expand=True,padx=12,pady=8)
-        self.json_edit=tk.Text(box,wrap='none',font=('Consolas',10));sy=ttk.Scrollbar(box,command=self.json_edit.yview);self.json_edit.configure(yscrollcommand=sy.set);sy.pack(side='right',fill='y');self.json_edit.pack(fill='both',expand=True)
+        self.random_print=tk.BooleanVar(value=self.template.get('random_print_enabled',False))
+        ttk.Checkbutton(top,text='ランダム印字（青文字を枠内で少しずらす）',variable=self.random_print).grid(row=6,column=0,columnspan=2,sticky='w',pady=5)
+        for row,(key,label) in enumerate([('random_print_x_mm','横のずれ幅 ±mm（0〜2）'),('random_print_y_mm','縦のずれ幅 ±mm（0〜2）'),('company_name','社名'),('company_address','住所'),('company_contact','連絡先')],7):
+            ttk.Label(top,text=label).grid(row=row,column=0,sticky='w',pady=3)
+            v=tk.StringVar(value=str(self.template.get(key,'')));self.setting_vars[key]=v
+            if key=='company_address':
+                # Company address is a form element, never a record entry.
+                ttk.Label(top,textvariable=v,width=55).grid(row=row,column=1,sticky='w',pady=3)
+            else:ttk.Entry(top,textvariable=v,width=55).grid(row=row,column=1,sticky='ew',pady=3)
+        ttk.Label(top,text='同じ入力はプレビューと保存で同じ位置になります。枠端ではずれ幅を抑えます。\n実寸はスキャン換算の暫定値。紙原本の実測値が分かれば修正してください。',wraplength=900).grid(row=12,column=0,columnspan=2,sticky='w',pady=8)
+        self.layout_settings=LayoutSettings(body,self.template);self.layout_settings.pack(fill='x',padx=12,pady=6)
+        self.field_settings=FieldDefaultsSettings(body,self.template);self.field_settings.pack(fill='x',padx=12,pady=6)
+        ttk.Label(body,text='下のJSONで項目ごとの印字有無・文字サイズ・位置・必須・桁数・上限・固定文を変更できます。\n項目ID・型・追加削除を変更した場合は、別帳票用の画面改修も必要です。適用前にバックアップを推奨。',padding=8).pack(fill='x')
+        box=ttk.Frame(body);box.pack(fill='both',expand=True,padx=12,pady=8)
+        self.json_edit=tk.Text(box,wrap='none',font=('Consolas',10),height=14);sy=ttk.Scrollbar(box,command=self.json_edit.yview);self.json_edit.configure(yscrollcommand=sy.set);sy.pack(side='right',fill='y');self.json_edit.pack(fill='both',expand=True)
         self.json_edit.insert('1.0',json.dumps(self.template,ensure_ascii=False,indent=2))
 
     def save_settings(self):
         if not self.may_leave():return
         t=json.loads(self.json_edit.get('1.0','end'))
         if [(f['id'],f['type']) for f in t['fields']]!=[(f['id'],f['type']) for f in self.template['fields']]:raise ValueError('画面と対応しない項目ID・型の変更です。項目定義の変更はコード側にも反映してください')
-        for key,v in self.setting_vars.items():t[key]=v.get() if key=='font_path' else float(v.get())
-        t['page_mode']=self.mode.get();t['input_print_style']=self.ink_style.get();validate_template(t)
+        for key,v in self.setting_vars.items():
+            if key=='company_address':continue
+            t[key]=v.get() if key=='font_path' or key.startswith('company_') else float(v.get())
+        self.layout_settings.apply(t);self.field_settings.apply(t)
+        t['page_mode']=self.mode.get();t['input_print_style']=self.ink_style.get();t['random_print_enabled']=self.random_print.get();validate_fixed_footer(t);validate_template(t)
         # Test rendering before saving malformed geometry/font settings.
-        test=self.store.directory/'preview';test.mkdir(exist_ok=True);render_pdf(test/'settings_check.pdf',[blank(t)],t,validate_records=False)
+        with generated_pdf(self.store.directory/'preview','settings') as pdf:render_pdf(pdf,[blank(t)],t,validate_records=False)
         data=self.values()
         self.store.set_template(t);self.template=t
+        self.setting_vars['company_address'].set(t.get('company_address',''))
         for widget in self.entrytab.winfo_children():widget.destroy()
         self.vars={};self.widgets={};self.build_entry();self.set_values(data)
         labels={f['id']:f['label'] for f in t['fields']}
@@ -296,10 +338,11 @@ class App:
     def import_template(self):
         path=filedialog.askopenfilename(filetypes=[('JSON','*.json')],parent=self.root)
         if not path:return
-        t=load_template(path);validate_template(t)
+        t=migrate_template(load_template(path),FORM_ID);validate_fixed_footer(t);validate_template(t)
         self.json_edit.delete('1.0','end');self.json_edit.insert('1.0',json.dumps(t,ensure_ascii=False,indent=2))
         for k,v in self.setting_vars.items():v.set(str(t.get(k,'')))
-        self.mode.set(t['page_mode']);self.ink_style.set(t.get('input_print_style','impact'));self.status.set('設定を読み込みました。「適用・保存」で確定します')
+        self.mode.set(t['page_mode']);self.ink_style.set(t.get('input_print_style','impact'));self.random_print.set(t.get('random_print_enabled',False));self.status.set('設定を読み込みました。「適用・保存」で確定します')
+        self.layout_settings.load(t);self.field_settings.load(t)
 
     def export_template(self):
         path=filedialog.asksaveasfilename(defaultextension='.json',initialfile='template.json',parent=self.root)
@@ -314,13 +357,11 @@ class App:
                 self.store.backup(path,self.template);self.status.set('バックアップしました。SQLiteファイルと同名の設定JSONをセットで保管してください')
         self.guarded(run)
 
-    def switch_folder(self):
-        handler=getattr(self,'folder_switch_handler',None)
+    def open_storage(self):
+        handler=getattr(self,'folder_open_handler',None)
         if handler:return handler()
-        if not self.may_leave():return
-        path=filedialog.askdirectory(title='別の保存先を選択（再起動します）',parent=self.root)
-        if not path:return
-        remember(path);self.store.close();self.root.destroy();main(path)
+        from app_storage import open_folder
+        return open_folder(self.store.directory)
 
     def close(self):
         if self.may_leave():self.store.close();self.root.destroy()
@@ -333,14 +374,11 @@ def remember(directory):
 def main(directory=None,smoke=False):
     root=tk.Tk();root.withdraw()
     if directory is None:
-        p=preferences()
-        if p.exists():
-            try:directory=json.loads(p.read_text(encoding='utf-8'))['directory']
-            except (KeyError,ValueError):pass
-        if not directory or not Path(directory).is_dir():
-            directory=filedialog.askdirectory(title='伝票データの保存先フォルダを選んでください',parent=root)
-            if not directory:root.destroy();return
-        remember(directory)
+        from main_app import read_profiles,profiles_path
+        from app_storage import AppStorage
+        import updates
+        try:directory=AppStorage(updates.install_root(),read_profiles(),profiles_path()).prepare(load_template())
+        except Exception as e:messagebox.showerror('保存先を使用できません',str(e),parent=root);root.destroy();return
     try:app=App(root,directory)
     except Exception as e:messagebox.showerror('起動エラー',str(e),parent=root);root.destroy();return
     if smoke:root.after(500,app.close)

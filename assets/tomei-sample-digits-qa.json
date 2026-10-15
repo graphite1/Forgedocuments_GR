@@ -1,0 +1,17 @@
+{
+  "kind": "raster-derived numeric subset",
+  "sha256": "9511a838776102e226de15a6d5f5f6f33c792e8a4bcd7e30657907b4d0cf7997",
+  "original_subset_sha256": "e65eb34b517e6d4bd97713507800cbef8b24cca0f1fc3c0cfc21b485873c342d",
+  "characters": "0123456789.-B",
+  "public_distribution": "User approved inclusion in the application prerelease; original PDFs and transaction records excluded",
+  "outlines_changed": 0,
+  "characters_added": 0,
+  "metadata_repairs": [
+    "version consistency",
+    "monospace hmtx compression/PANOSE",
+    "Win descent bounds",
+    "post names for existing glyphs"
+  ],
+  "partial_font": true,
+  "not_a_recovered_original_vector_font": true
+}

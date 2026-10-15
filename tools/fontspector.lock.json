@@ -1,0 +1,28 @@
+{
+  "version": "1.9.0",
+  "tag": "fontspector-v1.9.0",
+  "release_url": "https://github.com/fonttools/fontspector/releases/tag/fontspector-v1.9.0",
+  "asset_url": "https://github.com/fonttools/fontspector/releases/download/fontspector-v1.9.0/fontspector-1.9.0-x86_64-pc-windows-gnu.zip",
+  "asset_name": "fontspector-1.9.0-x86_64-pc-windows-gnu.zip",
+  "asset_bytes": 27704539,
+  "asset_sha256": "7386868f361d24932b28e570b0086069b6bb73cb9a7c4cb1b7f023428319bc6e",
+  "github_asset_digest": "sha256:7386868f361d24932b28e570b0086069b6bb73cb9a7c4cb1b7f023428319bc6e",
+  "docs": {
+    "INSTALLATION.md": {
+      "url": "https://raw.githubusercontent.com/fonttools/fontspector/fontspector-v1.9.0/INSTALLATION.md",
+      "sha256": "38745a5ebd8b3ac7d4e3a24f2b65cd2d6d12674103d9be5f9618c687c6546ed1"
+    },
+    "USING.md": {
+      "url": "https://raw.githubusercontent.com/fonttools/fontspector/fontspector-v1.9.0/USING.md",
+      "sha256": "a5c01051ddd101ea027067c5822923fca9982c2745aefb640e4eba317877f1ea"
+    },
+    "LICENSE": {
+      "url": "https://raw.githubusercontent.com/fonttools/fontspector/fontspector-v1.9.0/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    }
+  },
+  "installed_scope": "project development only",
+  "system_path_modified": false,
+  "executable_sha256": "2f1d754cd7382a57b669122db35da88b083609488bdbf1c6bb96f2eab07cf6bc",
+  "reported_version": "fontspector 1.9.0\ntag:fontspector-v1.9.0\ncommit_hash:d9d0f7b0\nbuild_time:2026-10-09 13:34:20 +00:00\nbuild_env:rustc 1.99.0 (b940084d7 2026-09-28),stable-x86_64-pc-windows-msvc"
+}

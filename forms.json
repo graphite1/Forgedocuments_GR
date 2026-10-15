@@ -3,6 +3,14 @@
     "id": "ac_toyoake",
     "title": "エーシー帳票",
     "description": "運搬明細書の入力・保存・集計・PDF出力",
-    "module": "ac_screen"
+    "module": "ac_screen",
+    "template": "template.json"
+  },
+  {
+    "id": "tomei_taiheiyo",
+    "title": "東名太平洋生コン（納入計画）",
+    "description": "42項目の納入予定値を入力・保存。青印字背景と黒文字を合成。署名・着時刻は空欄。",
+    "module": "tomei_screen",
+    "template": "templates/tomei_taiheiyo.json"
   }
 ]

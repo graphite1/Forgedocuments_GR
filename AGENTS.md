@@ -1,0 +1,100 @@
+# ForgeDocuments GR の開発方針
+
+このアプリは複数の帳票を再現・選択・入力・保存・プレビュー・出力し、更新で帳票を追加する共通アプリです。会社名や住所、固定文、座標を共通機構へ直書きしません。
+
+## 責務と拡張
+
+- `forms.json` / `form_registry.py`: 安定した帳票 ID と専用画面の登録。表示名で移行対象を判定しない。
+- `ac_screen.py` / `ac_defaults.py` / `template.json`: AC 専用の画面、既定値と移行、帳票定義。他帳票は別モジュールと定義を持つ。
+- `tomei_screen.py` / `templates/tomei_taiheiyo.json`: 生コンの42項目・青固定/黒入力・禁止欄と原票情報。`definition_screen.py` は定義から作る共通画面。
+- `blue_background.py` / `background_assets.py` / `background_compositor.py`: 既存青画素の抽出・確認済み背景・合成。生コンの固定印字をAI、OCR、文字や罫線で描き直さない。欠けを補完しない。原票背景が不足するときは入力・保存を残し出力を停止する。
+- `input_coordinates.py` / `templates/tomei_taiheiyo.coordinates.json`: mm座標を入力スキーマから分離。`tomei_defaults.py` は既存生コン設定に背景方式だけを追加し、値・履歴・独自座標を保持する。
+- `tomei_profiles.py` / `templates/tomei_taiheiyo.generated-20261014.coordinates.json`: 許可された画像訂正版専用の明示的な座標プロファイル。旧設定へ自動移行しない。私有設定JSONは `tools/prepare_tomei_plan.py` で作り、既存の設定取込・履歴保存を使う。`tools/verify_tomei_plan.py` は実背景で単票・四面付け・12回プレビューと画素一致を検証する。
+- `input_definitions.py` / `settings_widgets.py`: 帳票単位の候補・既定値・固定値と共通設定 UI。既存の実績を設定変更で書き換えない。
+- `core.py`: 型の検証、SQLite の保存・履歴、CSV、汎用 PDF 描画。既存の API を保つ。
+- `record_batches.py`: 正確な入力データ集合の件数・番号・単位別数量集計。将来のチェックシートも伝票と同じ集合を使う。
+- `page_layout.py`: 用紙と面付け。帳票座標から独立させ、原寸維持と縮小を区別する。
+- `preview_files.py` / `pdf_view.py`: 固有生成パス、メモリからの PDF 表示、キャンセルと表示終了時の後処理。
+- `main_app.py` / `updates.py`: 起動・帳票選択・既存保存先・署名付き GRHub 更新。新帳票でも共通化する。
+
+新帳票は安定した ID、独立した保存先、専用画面と定義を追加し、`forms.json` に登録する。`Store(directory, default_template=専用定義, form_id=帳票ID)` で初期設定を分離する。JSON 定義を `forms.json` の `template` へ登録すると、Windows ビルドはその定義と画面モジュールを自動で取り込む。表示名・社名の変更と別帳票への設定漏れをテストする。AC 帳票の入力や計算を別帳票へ流用しない。サンプルの実物を確認するまでは原本照合済みと報告しない。
+
+東名太平洋生コンは青い罫線・固定文字、黒い利用者指定入力を分離する。黒字のサンプル実績を初期値に残さない。署名と手書き着時刻は `print: false` 等で出力から除外し、欄は空白で残す。背景スキャンによる手書きや認証印の混入を避け、転記・再出力の識別表示を付ける。公式住所の候補と実際の伝票表記が異なる場合に自動上書きしない。
+
+生コンは納入計画用で、各伝票の枠外下部「納入書（計画）」を保持する。利用者の最新指示で旧「再生成」表示を置き換えた。入力数値は予定値として扱い、既存の記録・履歴の内容は変更しない。原票青印字背景の手書き除外・細字・罫線・切り出しの確認が必要。黒・赤・灰色は除去し、署名と着時刻の値領域も描画ごとに白くする。青い手書きが固定文字と同色のときは色分離だけで安全に除けると主張しない。人工の背景は診断専用と明示し、原票の完成見本にしない。
+
+生コンでは空欄保持を `layout_only` と専用ポリシーで固定し、入力・CSV取込・設定変更と空欄への別項目の配置からも守る。原票認証文字列GB0407016は文字列として維持し、認証の正当性を検証済みとは表現しない。用紙配置は欄外組合名も含めて計算し、帳票座標の縦横倍率で字体を歪めない。
+
+2026-10-14のユーザー指示は画像生成による修正を明示的に許可した。この範囲では `corrected_blue` として元画像・修正画像を別に保持し、郵便番号470-0162、住所末尾127番地、指定5選択肢を訂正できる。これは通常の原票青画素保持方針の例外であり、原票忠実再現や認証の確認完了を意味しない。画像生成は指定外の画素も変えるため `original_pixel_fidelity: false` を記録する。1070×1470背景の切り出しは[26,33,1044,1450]、背景1018×1417、外枠幅118.3mmを暫定尺度として高さを比率から決める。説明図の176.5mmへ引き伸ばさない。署名・着時刻マスクと計画表示はプロファイル単位で固定する。青抽出は濃い青の塗りつぶしも残し、黒・赤・灰色を除去する。取得成功だけを理由に既存設定を更新しない。
+
+## データと作業
+
+一括処理は確認済みの記録集合と CSV 取込を主軸にし、単票入力と選択単票出力を残す。現時点で実績の数量・日時・配合等を乱数で創作する機能は保留。印字位置のランダム化は入力値を変えず、プレビューと保存を一致させる。
+
+利用者の記録、独自住所、固定文、寸法、非表示設定を保護する。移行は追加的かつ再実行で変化しないようにする。原本、利用者 DB、個人設定、画像、秘密鍵を Git や配布へ混入させない。
+
+`python -B verify_cloud.py` で既存日本語フォントと表示環境を使った隔離テストを実行する。Linux の確認用 CID 代替フォントは `--cid-font` を明示する。これは Windows の字体確認にはならない。テストで署名鍵を新規生成しない。既存の公開署名 fixture で検証する。
+
+正式配布は対象コミットから Windows EXE を作成し、起動診断と更新テスト後、既存の正規鍵で署名して既存 GRHub 経路へ登録する。秘密鍵をチャットへ読み出さない。鍵が無いときに作成・置換・署名検証無効化をしない。未署名 ZIP や Linux 実行ファイルを完成した Windows 配布として公開しない。
+
+新しい開発ツールの本番導入はユーザー承認が必要。この作業のクラウド checkout は新しい正本であり、未入手の会社 PC の 1.3.2 と同一復元と称さない。
+
+## 1.3.4候補の固定住所・私有プリセット
+
+`ac_footer.py` の住所は編集する記録ではなく、罫線同様の固定テンプレート要素である。literalの1行・均等字間、入力変位の対象外とする。標準住所だけを読み取り専用表示にし、文字・位置・字間を通常設定で変更しない。旧標準の既知の座標からのみ移行し、独自住所・座標・非表示設定・旧フィールドと記録・訂正履歴はそのまま保持する。汎用描画のjustifyは固定文字用の文字間隔を指定し、社名などの文言をcore.pyへ持ち込まない。原本R_SCAN0238.pdfはこのクラウドで転送失敗している。提供された原本画像レビューの概算座標を使った候補であり、`ac_footer_source.overlay_verified` を実際の重ね比較なしでtrueへ変えない。
+
+`tomei_preset.py` は確認済み修正画像SHA256と元画像SHA256を照合して画像専用の寸法・crop・入力座標を適用する。1070×1470という寸法やファイル名だけで別画像を認定しない。元画像の誤字は確認チェックや未解決欄の削除だけで解除しない。私有同梱版の新規保存先だけを初期化し、既存保存先は従来の設定を保持する。背景選択UIで明示選択・適用したときは旧設定をSQLite履歴に残す。
+
+会社画像の公開Git/Releaseへの追加は未承認である。`private-assets/` は追跡対象外とし、`tools/package_private_preview.py` の出力はローカルの本人用非公開成果物だけにする。公開ソースZIPへ混ぜない。Windowsの `--private-background` も明示した本人用ビルドだけに使い、画像入りEXEを公開しない。Windows実機・原票実寸・原本位置一致を未確認のまま正式版と称さない。既存v1.3.3-preview.1タグを動かさず、新しい候補はv1.3.4-preview.1で区別する。PRはDraft・main未マージを保持する。
+
+## 1.3.5: 承認済みの生コン計画用背景を公開同梱
+
+ユーザーは「社名・住所・JISマークを含む背景も誰でも取得でき、黒字の取引データや署名は含めず計画用と分かる画像を公開配布する」ことに「いいよ」と明示承認した。上記の未承認・画像非同梱方針は、今回承認された `assets/tomei-plan-background.png` と対応する公開設定JSONに限って置き換える。原本PDF・AC見本・私有設定・実績DB・取引値・署名等の公開やLibrary保存はこの指示の対象外であり、追加しない。
+
+公開用PNGにも「納入書（計画）」を明記する。公開画像SHA256はe036d4f785c27270612c3242532e9ba31131465a14c8e54a5ac33709fea14f68。`tomei_preset.public_bundle_files()`で設定・画像・SHA256・用途・crop・専用座標を一緒に検証する。`assets/tomei-plan-background.json`と既存の専用座標定義を必ず公開ソースとWindowsパッケージへ含める。新規保存先は確認済み公開背景を初期設定し、初回の入力タブでプレビューを表示する。既存DB・設定は自動置換しない。
+
+Windowsビルドは公開背景を既定で同梱し、私有背景オプションを指定する必要はない。このLinuxでWindows EXE生成済みとは主張しない。旧タグを動かさず、新候補は1.3.5/通番6・v1.3.5-preview.1で区別する。生コン背景同梱だけを今回の変更範囲とし、ACの固定住所・原本照合・Library保存を追加作業しない。
+
+## 1.3.6: CTLBOIC のWindows検証と最新印字指定
+
+利用者は自宅PCでの最終フォント照合・背景入りexeビルドと起動検証を承認した。宛名の「殿」も黒入力とし、青い「納入書（計画）」は各枠の外に表示する。画像専用プロファイルでは公開元PNGのハッシュを保持し、出力時に枠内計画表示と青い殿を限定マスクする。宛名の保存値は変更せず、表示用接尾辞で黒合成する。旧プロファイルの更新は既存の設定履歴へ記録し、独自座標は保持する。
+
+新候補は1.3.6/通番7。既存タグを動かさず、PR #2 はDraft・main未マージを維持する。今回のexeは署名なしのローカル検証候補であり公開しない。公開工程は親タスクと別途調整する。Library原本は現行転送ヘルパーのWindows属性保存エラーで取得未完了。AC原本との最終字体・位置一致を確認済みにせず、固定住所の座標を推測補正しない。`FORGEDOCUMENTS_DIAGNOSTIC_DIR` を明示するとexeの隔離診断PDFと結果JSONを残せる。診断データ・原本・利用者バックアップはGitと配布へ含めない。
+
+追加指示により、黒入力の伝票印字・濃さ・字幅・字間・太さ・入力専用フォント選択を調整可能にする。フォントは既存Windows環境の設定→MSゴシック→メイリオ→同梱の優先順、TTC先頭faceを維持し、新規フォント導入・再配布をしない。入力専用フォントと濃度は固定背景・固定住所・枠外計画表示へ適用しない。単独半角「-」は文字・日付・時刻・数値・選択欄の未記載記号であり、保存・再読込・CSV・印字で保持する。数値集計では未記載へ数え、累計演算は数値を求めて停止する。負数許可を拡張しない。着時刻と署名など入力禁止欄は引き続き空白固定。
+
+## 1.3.7: 可変印字の透過度
+
+生コンは利用者提供のChatGPT生成背景を基準とし、原本PDF取得を完成条件にしない。AC住所照合は別案件。利用者の音声訂正は「透過度」であり、0%=不透明・100%=透明のPDFアルファ設定を黒い可変入力へ追加する。既存 `input_density` はグレー色変更として維持し、UIは「文字色の濃さ」と「透過度」を明確に区別する。`input_transparency` 不在の旧設定は0%扱いとし、設定ファイルや記録を自動上書きしない。固定背景・青固定文・固定住所・枠外計画表示は不透明のまま保持する。
+
+1.3.6の候補を置換せず、新候補1.3.7/通番8としてローカルでビルド・検証する。この追加作業でRelease公開、PRマージ、既存タグ変更をしない。見た目確認用PNGは実際のレンダラーとサンプルと明記した架空計画入力から作り、利用者がチャット提供用Library保存を承認済み。実取引・署名・原本・私有DBは含めない。
+# 1.3.8: 本人確認用の専用印字フォント
+
+利用者は、抽出済み試作TTFのアプリ内同梱・選択UI・Windows確認用ZIP作成を承認した。OSへインストールしない。収録文字は0–9・小数点・ハイフン・Bのみとし、それ以外は従来の選択書体へ文字単位で明示的に切り替える。幅計算・改行・描画・ドット印字・透過で同じ文字列と書体判定を用いる。標準書体と従来設定を保持し、専用書体は既定にしない。
+
+`tomei_print_font.py` は対象帳票・ハッシュ・収録文字を所有し、`input_fonts.py` は汎用の書体ランと幅計算・描画を所有する。TTFは追跡対象外の `private-assets/` に置き、`tools/build_windows.py --unsigned --sample-print-font` の明示指定時だけ同梱する。この見本由来TTFと同梱exe/ZIPの公開配布は禁止。Git push・Release公開・PRマージは今回の範囲外。確認PNGの本人用Library保存のみ承認済み。原本PDFや取引データを同梱しない。
+# 1.3.9: 数字とハイフンの品質・工事情報なしの配合入力
+
+利用者は数字0–9とハイフンを最優先とし、文字追加を止めた。既存13／46／74字フォントを保持し、原本の欠けを推測で埋めない。`tomei-numeric-only-v2` は同じ検証済み13字TTFから数字・小数点・ハイフンだけを使い、それ以外は従来の選択書体へ切り替える。明示的な選択時だけ通常印字を初期選択し、標準書体と従来の設定は保持する。
+
+工事情報・宛先は任意であり、空欄でも配合欄・全空欄のプレビューとPDF出力が可能である。ダミー値で補完しない。新規テンプレートの配合計画書番号は値があるときだけ表示用見出しを付け、元の保存値は変えない。既存の独自テンプレートへ見出しを自動追加しない。数字・ハイフン・配合入力・単票／四面・枠外の計画表示・空欄と書体選択の再開保持を検証する。1.3.9/序10は本人確認用の未署名ビルドであり、Git push・公開・Release・PRマージは行わない。
+
+## 1.3.10: approved public numeric-font prerelease
+
+On 2026-10-15 the user explicitly authorized development-only Fontspector and public GitHub prerelease distribution of the approved 13-glyph numeric font within the application. This supersedes earlier private-only restrictions for that numeric subset and this confirmation release. The repaired copy in assets preserves all outlines, character mappings and decoded advances. The 46/74-glyph experiments, original PDFs, crops, transaction data, user databases, private diagnostics and secrets remain excluded. New release/version only; no tag moves, main merge, credential/security changes or API-denial bypass. Fontspector stays ignored under .dev-tools and is not bundled. GitHub prerelease is unsigned, nonlatest, distinct from signed GR Release Hub updates.
+
+## 1.3.11: local-only blue density and source recheck
+
+The user authorized source rechecking of plan-number digits and 普通, independent blue artwork density, tests, a Windows confirmation build and comparison images. Preserve all source PDFs, sampled fonts, background pixels and user settings. The new blue_ink module scales blue only at output; default 100% is unchanged. Limit blue density to 35–150% and retain at least 65% for the outside plan notice. AC fixed address and black input density/transparency stay independent. Source recheck crops/transaction identifiers remain private outside Git and builds. No new glyphs or font replacements are needed for the confirmed requested characters; numeric-only mode continues explicit Windows fallback for Japanese. Version 1.3.11/sequence12 is LOCAL ONLY: do not push, tag, publish or replace public 1.3.10 without separate user approval. Keep PR #2 Draft/unmerged.
+
+## 1.3.12: automatic per-form application storage (local only)
+
+The user authorized fixing the Tomei opening failure and replacing manual storage selection with fixed per-form folders inside the application. Use updates.install_root()/data/<form_id>, keeping updater routing stable. Preserve legacy APPDATA profiles, old databases/WAL/settings and custom colors; copy only matching form data after immutable backup. Do not disable Store.check_form or Tomei policy checks. Reject ambiguous/corrupt or foreign automatic data without resetting it. Never silently fall back to another folder when writing is blocked. Show clear writable-extraction guidance. Keep blue density and black input ink independent and plan notices readable. The current additional build stays private/local: no push, tag, release or PR merge. User source backups and synthetic diagnostic records must never enter Git or the build.
+
+### Current user restriction after 1.3.12 verification
+
+The user is gaming and explicitly prohibits using their screen, mouse, keyboard, focus, GUI windows, or an alternate virtual desktop. All 1.3.12 GUI diagnostics were already complete before that instruction arrived. Continue only headless code/tests/builds on isolated data. Do not launch any further GUI checks, open artifacts in the app, or close user applications/games until the user explicitly permits screen use again. Report any future unperformed GUI checks as unverified.
+
+### Approved 1.3.12 prerelease and Tomei theme correction
+
+The user approved publishing 1.3.12 as GitHub v1.3.12-preview.1, prerelease=true/make_latest=false, with its audited Windows ZIP and SHA256; necessary work-branch push is authorized. This supersedes the earlier local-only hold for this release. The user's preferred future confirmation delivery is a GitHub release rather than a Library ZIP. Existing tags/releases/Library items must not be overwritten. Before publication the user explicitly chose the former Tomei screen theme: Windows vista (non-Windows development default), shared by Home/AC/Tomei without AC clam/padding overrides. It is separate from PDF ink colors. Rebuild after the correction; headless tests only. No GUI, focus, mouse or keyboard use, PR merge, formal/latest promotion, installed-app replacement, new credentials or security changes. Preserve earlier local ZIP/GUI evidence and clearly distinguish the theme-corrected artifact, whose GUI restart is unverified under the screen prohibition.
