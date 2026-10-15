@@ -1,5 +1,6 @@
 """Concrete-form regressions with synthetic input only and no private keys."""
 import copy
+from contextlib import closing
 import csv
 import json
 from pathlib import Path
@@ -227,7 +228,7 @@ class TomeiChecks(unittest.TestCase):
         try:
             with self.assertRaises(ValueError):App(root,self.path/'legacy')
         finally:root.destroy()
-        with sqlite3.connect(self.path/'legacy/records.sqlite3') as db:
+        with closing(sqlite3.connect(self.path/'legacy/records.sqlite3')) as db:
             rows=db.execute('SELECT after_json FROM settings').fetchall();self.assertEqual(len(rows),1);self.assertEqual(json.loads(rows[0][0]),t)
 
     def test_all_registered_forms_diagnostic(self):

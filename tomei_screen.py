@@ -69,6 +69,8 @@ def validate_policy(t):
     expected_notice=next(i for i in default['fixed_texts'] if i.get('id')=='copy_notice')
     if len(notices)!=1 or notices[0]!=expected_notice:raise ValueError('各伝票の納入書（計画）表示と読み取れる色・大きさ・位置を保持してください')
     if t.get('input_color')!=[0,0,0]:raise ValueError('入力値は黒で出力してください')
+    if t.get('layout_profile') and (t.get('plan_overlay_revision')!=1 or fields['recipient'].get('display_suffix')!=' 殿'):
+        raise ValueError('宛名の殿は背景から除外し、黒い入力値として出力してください')
     blue=t['line_color']
     if len(blue)!=3 or not 0<=min(blue)<=max(blue)<=1 or not blue[2]>max(blue[:2]):raise ValueError('固定罫線と固定文字は青で出力してください')
     for f in fields.values():

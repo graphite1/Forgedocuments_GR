@@ -9,7 +9,7 @@ from core import Store,blank,validate,validate_template,render_pdf,render_pngs,c
 from pdf_view import PDFView,preview_window
 from preview_files import generated_pdf
 from record_batches import summary
-from settings_widgets import LayoutSettings,FieldDefaultsSettings
+from settings_widgets import LayoutSettings,FieldDefaultsSettings,InputPrintSettings
 
 
 class DefinitionScreen:
@@ -75,7 +75,7 @@ class DefinitionScreen:
             else:
                 v=tk.StringVar();self.vars[f['id']]=v;fixed=f.get('fixed_value') is not None
                 if f.get('suggestions'):w=ttk.Combobox(frame,textvariable=v,values=f['suggestions'],state='disabled' if fixed else 'normal')
-                elif f['type']=='choice':w=ttk.Combobox(frame,textvariable=v,values=f['choices'],state='disabled' if fixed else 'readonly')
+                elif f['type']=='choice':w=ttk.Combobox(frame,textvariable=v,values=list(dict.fromkeys(f['choices']+['-'])),state='disabled' if fixed else 'readonly')
                 else:w=ttk.Entry(frame,textvariable=v,state='readonly' if fixed else 'normal')
                 w.grid(row=row,column=1,sticky='ew',pady=4);self.widgets[f['id']]=w;v.trace_add('write',self.dirty)
         self.preview_view=PDFView(right);self.preview_view.pack(fill='both',expand=True)
@@ -201,7 +201,7 @@ class DefinitionScreen:
     def batch_summary(self):
         cfg=self.template['summary_config'];rows=self.selected()
         result=summary(rows,cfg.get('number_field'),cfg['quantity_field'],cfg.get('unit_field'))
-        totals='\n'.join(f"{value} {unit or cfg.get('unit','')}" for unit,value in result['quantity_totals'].items()) or '0'
+        totals='\n'.join(f"{value} {unit or cfg.get('unit','')}" for unit,value in result['quantity_totals'].items()) or '集計できる数値なし'
         messagebox.showinfo(self.template.get('quantity_summary_title','選択した記録の集計'),f"件数: {result['count']}\n数量合計:\n{totals}\n数量未記載: {result['missing_quantity_count']}件",parent=self.root)
 
     def build_settings(self):
@@ -213,6 +213,7 @@ class DefinitionScreen:
         body=ttk.Frame(canvas,padding=8);win=canvas.create_window((0,0),window=body,anchor='nw')
         body.bind('<Configure>',lambda e:canvas.configure(scrollregion=canvas.bbox('all')));canvas.bind('<Configure>',lambda e:canvas.itemconfigure(win,width=e.width))
         self.layout_settings=LayoutSettings(body,self.template);self.layout_settings.pack(fill='x',pady=5)
+        self.input_print_settings=InputPrintSettings(body,self.template);self.input_print_settings.pack(fill='x',pady=5)
         self.background_settings=None
         if self.template.get('render_mode')=='background':
             from background_settings import BackgroundSettings
@@ -229,6 +230,7 @@ class DefinitionScreen:
     def save_settings(self):
         if not self.may_leave():return
         t=json.loads(self.json_edit.get('1.0','end'));self.layout_settings.apply(t);self.field_settings.apply(t)
+        self.input_print_settings.apply(t)
         if self.background_settings:self.background_settings.apply(t)
         t['random_print_enabled']=self.random_enabled.get()
         for key,v in self.random_axes.items():t[key]=float(v.get())
@@ -247,6 +249,7 @@ class DefinitionScreen:
         from core import load_template
         t=self.store.prepare_definition(load_template(path));self.validate_policy(t);validate_template(t)
         self.layout_settings.load(t);self.field_settings.load(t);self.random_enabled.set(t.get('random_print_enabled',False))
+        self.input_print_settings.load(t)
         if self.background_settings:self.background_settings.load(t)
         for key,v in self.random_axes.items():v.set(str(t.get(key,.3)))
         self.json_edit.delete('1.0','end');self.json_edit.insert('1.0',json.dumps(t,ensure_ascii=False,indent=2));self.status.set('設定を読み込みました。適用・保存で確定します')

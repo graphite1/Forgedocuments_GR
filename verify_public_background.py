@@ -70,3 +70,64 @@ class PublicBackgroundChecks(unittest.TestCase):
             self.assertEqual(app.template,old)
             self.assertEqual(app.store.get(record['id']),record);self.assertEqual(app.store.history(record['id']),history)
         finally:app.store.close();root.destroy()
+
+    def test_in_frame_notice_and_blue_honorific_are_masked_without_changing_other_ink(self):
+        from tomei_preset import with_bundled_preset
+        t=with_bundled_preset(core.load_template(DEFINITION))
+        image=load_background(t)
+        for rect in ((124,105,332,60),(232,166,46,42)):
+            x,y,w,h=rect
+            # Borders are intentionally excluded by the generic cell mask.
+            self.assertEqual(image.crop((x-24,y-31,x+w-28,y+h-35)).getextrema(),((255,255),)*3)
+        prior=copy.deepcopy(t);prior['background_blank_regions_mm']=prior['background_blank_regions_mm'][:-2]
+        old=load_background(prior)
+        from PIL import ImageChops,ImageDraw
+        difference=ImageChops.difference(old,image)
+        draw=ImageDraw.Draw(difference)
+        for x,y,w,h in ((124,105,332,60),(232,166,46,42)):
+            draw.rectangle((x-26,y-33,x+w-26,y+h-33),fill='black')
+        self.assertIsNone(difference.getbbox())
+
+    def test_recipient_and_honorific_black_notice_outside_each_frame_and_no_value_mutation(self):
+        from tomei_preset import with_bundled_preset
+        t=with_bundled_preset(core.load_template(DEFINITION))
+        for value in ('確認用宛名','確認用宛名 殿'):
+            data=core.blank(t);data['recipient']=value;before=copy.deepcopy(data)
+            for count in (1,5):
+                layout=copy.deepcopy(t)
+                if count==5:layout['page_layout'].update(paper='A4',rows=2,columns=2,scale='fit')
+                path=self.path/f'check-{count}.pdf';core.render_pdf(path,[data]*count,layout)
+                with pymupdf.open(path) as doc:
+                    for page in doc:
+                        images=sorted(page.get_image_rects(page.get_images()[0][0]),key=lambda r:(r.y0,r.x0))
+                        notices=sorted(page.search_for('納入書（計画）'),key=lambda r:(r.y0,r.x0))
+                        self.assertEqual(len(images),len(notices))
+                        for image,notice in zip(images,notices):
+                            self.assertGreater(notice.y0,image.y1);self.assertTrue(page.rect.contains(notice))
+                        spans=[s for b in page.get_text('dict')['blocks'] if b['type']==0 for l in b['lines'] for s in l['spans']]
+                        recipient=[s for s in spans if '確認用宛名' in s['text']]
+                        self.assertEqual(len(recipient),len(images))
+                        self.assertTrue(all(s['color']==0 and s['text'].count('殿')==1 for s in recipient))
+                self.assertEqual(data,before)
+
+    def test_old_profile_upgrades_once_and_preserves_custom_recipient_box_and_values(self):
+        from tomei_preset import with_bundled_preset
+        from tomei_defaults import migrate_background
+        base=core.load_template(DEFINITION);old=with_bundled_preset(base)
+        old.pop('plan_overlay_revision')
+        old['background_blank_regions_mm']=old['background_blank_regions_mm'][:-2]
+        recipient=next(f for f in old['fields'] if f['id']=='recipient')
+        recipient.pop('display_suffix');recipient.update(box=[20,125,400,45],default='KEEP-CUSTOM',wrap=True)
+        upgraded=migrate_background(old,base)
+        actual=next(f for f in upgraded['fields'] if f['id']=='recipient')
+        self.assertEqual(actual['box'],recipient['box']);self.assertEqual(actual['default'],'KEEP-CUSTOM')
+        self.assertTrue(actual['wrap'])
+        self.assertEqual(migrate_background(upgraded,base),upgraded)
+        self.assertNotIn('plan_overlay_revision',old)
+
+    def test_reselecting_same_background_keeps_new_masks_and_black_honorific(self):
+        from tomei_preset import with_bundled_preset
+        from tomei_profiles import image_profile
+        t=with_bundled_preset(core.load_template(DEFINITION))
+        self.assertEqual(image_profile(t)['background_blank_regions_mm'],t['background_blank_regions_mm'])
+        self.assertEqual(image_profile(t)['fields'],t['fields'])

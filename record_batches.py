@@ -13,10 +13,10 @@ def summary(records,number_field,quantity_field,unit_field):
     for row in records:
         data=row.get('data',row);numbers.append(data.get(number_field,''))
         value=data.get(quantity_field,'')
-        if value=='':missing+=1;continue
+        if value in ('','-'):missing+=1;continue
         quantity=Decimal(value)
         if not quantity.is_finite():raise ValueError('集計対象の数量は有限の数値で指定してください')
         unit=data.get(unit_field,'')
         totals[unit]=totals.get(unit,Decimal(0))+quantity
-    return {'count':len(numbers),'numbers':numbers,'duplicates':[n for n,count in Counter(numbers).items() if n and count>1],
+    return {'count':len(numbers),'numbers':numbers,'duplicates':[n for n,count in Counter(numbers).items() if n not in ('','-') and count>1],
             'quantity_totals':{unit:format(value,'f') for unit,value in totals.items()},'missing_quantity_count':missing}

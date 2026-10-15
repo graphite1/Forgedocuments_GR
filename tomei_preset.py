@@ -71,6 +71,7 @@ def apply_preset(template,source,*,reviewed=False,errors=None):
             corrected_text=['470-0162','愛知県愛知郡東郷町大字春木字南切山127番地','配合の種別5選択肢'])
         if kind=='public_plan':
             config['processing'].update(public_distribution_approved=True,plan_notice_in_image=True,
+                in_frame_notice_masked=True,recipient_honorific_masked=True,
                 public_source_sha256=PUBLIC_SHA256,public_settings='assets/tomei-plan-background.json')
     config['unresolved_text_errors']=unresolved
     t['background']=config

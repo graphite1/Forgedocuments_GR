@@ -38,6 +38,7 @@ def blank(template):
     return default_values(template)
 
 def dec(value):
+    if value=='-':raise ValueError('「-」は未記載の記号です。計算には数値を入力してください')
     d = Decimal(str(value))
     if not d.is_finite():
         raise ValueError('有限の数値を入力してください')
@@ -55,6 +56,10 @@ def validate(values, template):
             continue
         if not value:
             if f.get('required'): errors.append(f"{f['label']}: 未入力です")
+            continue
+        if value=='-' and f['type'] in ('text','date','time','decimal','integer','choice'):
+            if f.get('numeric_required_for_calculation'):
+                errors.append(f"{f['label']}: 計算に必要な数値を入力してください（-は未記載）")
             continue
         try:
             typ = f['type']
@@ -122,6 +127,11 @@ def validate_template(t):
         value=t.get(key,0.3)
         if isinstance(value,bool) or not math.isfinite(float(value)) or not 0<=float(value)<=2:
             raise ValueError('ランダム印字のずれ幅は0〜2mmで設定')
+    for key,lower,upper,default in (('input_density',.35,1,1),('input_width_scale',.8,1.2,1),
+                                  ('input_tracking_em',0,.2,0),('input_weight_em',0,.06,.018)):
+        value=t.get(key,default)
+        if isinstance(value,bool) or not math.isfinite(float(value)) or not lower<=float(value)<=upper:
+            raise ValueError(f'入力文字の{key}は{lower:g}〜{upper:g}で指定してください')
     placements(t)
     return t
 
@@ -259,11 +269,11 @@ class Store:
         groups={(r['data'].get('date',''),r['data'].get('recipient',''),r['data'].get('site',''),r['data'].get('kind',''),r['data'].get('quantity_unit','')) for r in records}
         if len(groups)!=1: raise ValueError('同じ年月日・宛先・現場名・種類・単位の記録だけを選択してください')
         units={r['data'].get('quantity_unit','') for r in records}
-        if '' in units: raise ValueError('数量単位を指定してください。kg等へ自動換算しません')
+        if '' in units or '-' in units: raise ValueError('数量単位を指定してください。kg等へ自動換算しません')
         updates=[]
         for r in records:
             data=copy.deepcopy(r['data'])
-            if not data.get('quantity'): raise ValueError('正味重量が空欄です')
+            if data.get('quantity') in ('',None,'-'): raise ValueError('正味重量が未記載です（空欄・-）。累計計算には数値を入力してください')
             total+=dec(data['quantity']); count+=1
             data['cumulative_quantity']=format(total,'f'); data['cumulative_count']=format(count,'f'); data['cumulative_unit']=data['quantity_unit']
             errs=validate(data,template)
@@ -329,23 +339,23 @@ def styled_font(t,style,default):
     candidate=Path(t.get('serif_font_path') or Path(os.environ.get('WINDIR','C:/Windows'))/'Fonts/msmincho.ttc')
     return font_name(dict(t,font_path=str(candidate))) if candidate.is_file() else default
 
-def wrap_text(value,font,size,width):
+def wrap_text(value,font,size,width,width_scale=1,tracking_em=0):
     from reportlab.pdfbase import pdfmetrics
     lines=[]
     for para in value.split('\n'):
         line=''
         for ch in para:
-            if line and pdfmetrics.stringWidth(line+ch,font,size)>width:
+            if line and pdfmetrics.stringWidth(line+ch,font,size)*width_scale+len(line)*size*tracking_em>width:
                 lines.append(line); line=''
             line+=ch
         lines.append(line)
     return lines
 
-def fit_text(value,font,size,w,h,wrap=False,min_font=14):
+def fit_text(value,font,size,w,h,wrap=False,min_font=14,width_scale=1,tracking_em=0):
     from reportlab.pdfbase import pdfmetrics
     while size>=min_font:
-        lines=wrap_text(value,font,size,w) if wrap else value.split('\n')
-        if len(lines)*size*1.18<=h and all(pdfmetrics.stringWidth(s,font,size)<=w for s in lines): return size,lines
+        lines=wrap_text(value,font,size,w,width_scale,tracking_em) if wrap else value.split('\n')
+        if len(lines)*size*1.18<=h and all(pdfmetrics.stringWidth(s,font,size)*width_scale+max(0,len(s)-1)*size*tracking_em<=w for s in lines): return size,lines
         size-=0.5
     raise ValueError('文字が欄内に収まりません。文字数を減らすか、設定の欄・文字サイズを調整してください')
 
@@ -387,6 +397,9 @@ def render_pdf(path,records,t,validate_records=True):
         background=load_background(t)
     font=font_name(t)
     base_font=font;style_fonts={}
+    input_font=font_name(dict(t,font_path=t['input_font_path'])) if t.get('input_font_path') else base_font
+    density=float(t.get('input_density',1))
+    input_ink=[1-density+channel*density for channel in t['input_color']]
     impact_cache={}
     occurrences={}
     fw,fh=float(t['width_mm'])*MM,float(t['height_mm'])*MM
@@ -417,16 +430,20 @@ def render_pdf(path,records,t,validate_records=True):
             c.setDash()
             def text(value,box,size=28,align='left',wrap=False,color=None,min_font=14,is_input=None,font_override=None):
                 if not value: return
-                font=font_override or base_font
                 if is_input is None:is_input=color is not None
+                font=font_override or (input_font if is_input else base_font)
+                shaped=is_input
+                width_scale=float(t.get('input_width_scale',1)) if shaped else 1
+                tracking_em=float(t.get('input_tracking_em',0)) if shaped else 0
                 x,y,w,h=box
-                try: size,lines=fit_text(str(value),font,float(size),w,h,wrap,min_font)
+                try: size,lines=fit_text(str(value),font,float(size),w,h,wrap,min_font,width_scale,tracking_em)
                 except ValueError as e: raise ValueError(f'{str(value)[:30]}: {e}')
-                c.setFillColorRGB(*(color or t['line_color']))
+                ink=[1-density+channel*density for channel in (color or t['input_color'])] if is_input else (color or t['line_color'])
+                c.setFillColorRGB(*ink)
                 for i,s in enumerate(lines):
                     tx=x
                     from reportlab.pdfbase import pdfmetrics
-                    width=pdfmetrics.stringWidth(s,font,size)
+                    width=pdfmetrics.stringWidth(s,font,size)*width_scale+max(0,len(s)-1)*size*tracking_em
                     if align=='center': tx+=(w-width)/2
                     if align=='right': tx+=w-width
                     top=y+(h-len(lines)*size*1.18)/2+i*size*1.18
@@ -442,13 +459,14 @@ def render_pdf(path,records,t,validate_records=True):
                         # A regular pin grid makes the input look like impact-printer ink.
                         # Render the glyph once to obtain coverage, then draw vector dots.
                         import pymupdf
-                        key=(s,size,font)
+                        mask_width=width/width_scale
+                        key=(s,size,font,width_scale,tracking_em)
                         if key not in impact_cache:
                             buffer=io.BytesIO()
-                            mask=canvas.Canvas(buffer,pagesize=(width+size,size*1.6),pageCompression=1)
+                            mask=canvas.Canvas(buffer,pagesize=(mask_width+size,size*1.6),pageCompression=1)
                             mask.setFillColorRGB(0,0,0);mask.setStrokeColorRGB(0,0,0)
                             mask.setLineWidth(float(t.get('impact_stroke',1.1)))
-                            glyph=mask.beginText(size*.2,size*.3);glyph.setFont(font,size);glyph.setTextRenderMode(2);glyph.textOut(s);mask.drawText(glyph);mask.save()
+                            glyph=mask.beginText(size*.2,size*.3);glyph.setFont(font,size);glyph.setCharSpace(size*tracking_em/width_scale);glyph.setTextRenderMode(2);glyph.textOut(s);mask.drawText(glyph);mask.save()
                             with pymupdf.open(stream=buffer.getvalue(),filetype='pdf') as md:
                                 pix=md[0].get_pixmap(matrix=pymupdf.Matrix(3,3),colorspace=pymupdf.csGRAY,alpha=False)
                                 raw=pix.samples;pitch=max(.75,float(t.get('impact_pitch',1.2)))
@@ -457,7 +475,7 @@ def render_pdf(path,records,t,validate_records=True):
                                 yy=pitch/2
                                 while yy<size*1.6:
                                     xx=pitch/2
-                                    while xx<width+size:
+                                    while xx<mask_width+size:
                                         px=min(pix.width-1,int(xx*3));py=min(pix.height-1,int(yy*3))
                                         if raw[py*pix.stride+px]<170:points.append((xx-size*.2,size*1.3-yy))
                                         xx+=pitch
@@ -466,13 +484,19 @@ def render_pdf(path,records,t,validate_records=True):
                         points,pitch=impact_cache[key]
                         radius=pitch*float(t.get('impact_dot_ratio',.46))
                         # Invisible glyphs preserve text search and copy in the PDF.
-                        obj=c.beginText(0,0);obj.setFont(font,size);obj.setTextRenderMode(3);obj.textOut(s);c.drawText(obj)
+                        c.scale(width_scale,1)
+                        obj=c.beginText(0,0);obj.setFont(font,size);obj.setCharSpace(size*tracking_em/width_scale);obj.setTextRenderMode(3);obj.textOut(s);c.drawText(obj)
                         for px,py in points:c.circle(px,py,radius,stroke=0,fill=1)
                     else:
                         c.setFont(font,size)
+                        if is_input:
+                            c.scale(width_scale,1)
                         if is_input and t.get('input_print_style','smooth')!='plain':
-                            c.setStrokeColorRGB(*color);c.setLineWidth(float(t.get('input_stroke',.5)))
-                            obj=c.beginText(0,0);obj.setFont(font,size);obj.setTextRenderMode(2);obj.textOut(s);c.drawText(obj)
+                            c.setStrokeColorRGB(*ink)
+                            c.setLineWidth(size*float(t.get('input_weight_em',.018)) if t.get('input_print_style')=='printer' else float(t.get('input_stroke',.5)))
+                            obj=c.beginText(0,0);obj.setFont(font,size);obj.setCharSpace(size*tracking_em/width_scale);obj.setTextRenderMode(2);obj.textOut(s);c.drawText(obj)
+                        elif is_input and tracking_em:
+                            obj=c.beginText(0,0);obj.setFont(font,size);obj.setCharSpace(size*tracking_em/width_scale);obj.textOut(s);c.drawText(obj)
                         elif align=='justify' and len(s)>1:
                             obj=c.beginText(0,0);obj.setFont(font,size)
                             obj.setCharSpace((w-width)/(len(s)-1));obj.textOut(s);c.drawText(obj)
@@ -500,13 +524,16 @@ def render_pdf(path,records,t,validate_records=True):
                             c.setStrokeColorRGB(*t['line_color']);c.setLineWidth(t['line_width']);c.rect(x,y,w,h,stroke=1,fill=0)
                             text(option['label'],option['label_box'],option.get('font',16),min_font=option.get('min_font',10),is_input=False)
                         if option['key'] in selected:
-                            c.setStrokeColorRGB(*t['input_color']);c.setLineWidth(t.get('input_stroke',.5))
+                            c.setStrokeColorRGB(*input_ink);c.setLineWidth(t.get('input_stroke',.5))
                             dx=max(-w*.2,min(w*.2,shift_x));dy=max(-h*.2,min(h*.2,shift_y))
                             c.line(x+w*.2+dx,y+h*.2+dy,x+w*.8+dx,y+h*.8+dy);c.line(x+w*.2+dx,y+h*.8+dy,x+w*.8+dx,y+h*.2+dy)
                     continue
                 if not value: continue
+                suffix=f.get('display_suffix','')
+                if suffix and value!='-' and not str(value).rstrip().endswith(suffix.strip()):
+                    value=str(value)+suffix
                 if value in f.get('choice_marks',{}):
-                    c.setStrokeColorRGB(*t['input_color']);c.setLineWidth(1.5)
+                    c.setStrokeColorRGB(*input_ink);c.setLineWidth(1.5)
                     x,y,w,h=f['choice_marks'][value];bx,by,bw,bh=f.get('mark_bounds',[0,0,coord_w,coord_h])
                     dx=max(bx-x,min(bx+bw-x-w,shift_x));dy=max(by-y,min(by+bh-y-h,shift_y))
                     c.ellipse(x+dx,y+dy,x+w+dx,y+h+dy,stroke=1,fill=0)
@@ -520,7 +547,7 @@ def render_pdf(path,records,t,validate_records=True):
                     c.saveState();c.translate(x+(w-dw)/2+dx,y+(h+dh)/2+dy);c.scale(1,-1);c.drawImage(im,0,0,dw,dh,mask='auto');c.restoreState()
                     continue
                 if f.get('suppressed_by') and values.get(f['suppressed_by']): continue
-                if f.get('parts'):
+                if f.get('parts') and value!='-':
                     parts=value.split('-' if f['type']=='date' else ':')
                     for part,box in zip(parts,f['parts']): text(part,box,f.get('font',28),f.get('align','center'),color=t['input_color'],min_font=f.get('min_font',14))
                 else:

@@ -27,4 +27,7 @@ def migrate_background(template, default):
         result['plan_revision']=1
         result['entry_value_label']=default['entry_value_label']
         result['quantity_summary_title']=default['quantity_summary_title']
+    if result.get('layout_profile') == 'generated-20261014' and result.get('plan_overlay_revision',0)<1:
+        from tomei_profiles import plan_overlays
+        result=plan_overlays(result)
     return result

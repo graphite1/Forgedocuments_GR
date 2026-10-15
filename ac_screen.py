@@ -83,7 +83,7 @@ class App:
                 v.trace_add('write',lambda *a:(self.dirty(),self.image_status.set('登録済み' if self.vars['receipt_image'].get() else 'なし')))
             else:
                 v=tk.StringVar();self.vars[f['id']]=v
-                if f['type']=='choice':w=ttk.Combobox(fr,textvariable=v,values=f['choices'],state='disabled' if fixed else 'readonly')
+                if f['type']=='choice':w=ttk.Combobox(fr,textvariable=v,values=list(dict.fromkeys(f['choices']+['-'])),state='disabled' if fixed else 'readonly')
                 elif f.get('suggestions'):w=ttk.Combobox(fr,textvariable=v,values=f['suggestions'],state='disabled' if fixed else 'normal')
                 else:w=ttk.Entry(fr,textvariable=v,state='readonly' if fixed else 'normal')
                 self.widgets[f['id']]=w
@@ -162,7 +162,7 @@ class App:
 
     def batch_summary(self):
         result=summary(self.selected(),'number','quantity','quantity_unit')
-        totals='\n'.join(f"{unit or '単位未指定'}: {value}" for unit,value in result['quantity_totals'].items())
+        totals='\n'.join(f"{unit or '単位未指定'}: {value}" for unit,value in result['quantity_totals'].items()) or '集計できる数値なし'
         text=f"件数: {result['count']}\n伝票番号: "+'、'.join(result['numbers'])+f"\n数量合計（単位別）\n{totals}\n数量未入力: {result['missing_quantity_count']}件"
         if result['duplicates']:text+='\n番号重複: '+', '.join(result['duplicates'])
         messagebox.showinfo('選択した記録の集計',text,parent=self.root)

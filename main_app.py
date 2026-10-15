@@ -87,25 +87,9 @@ class Home:
         updates.request_apply(directory,list(self.profiles.values()));self.dispose()
 
 def diagnostic():
-    import reportlab,PIL,pymupdf
-    from core import load_template,validate_template
-    validate_template(load_template());catalog();updates.config()
-    root=tk.Tk();root.withdraw();root.update();root.destroy()
-    # Exercise packaged dynamic font imports, native PDF rendering and preview.
-    from core import blank
-    with tempfile.TemporaryDirectory(prefix='forgedocuments_diagnostic_') as directory:
-        for row in catalog():
-            root=tk.Tk();root.withdraw();screen=None
-            try:
-                screen=open_screen(row,root,Path(directory)/row['id'])
-                screen.set_values(blank(screen.template))
-                if screen.template.get('render_mode')=='background' and screen.template.get('background',{}).get('status')=='missing':
-                    print(row['id']+': background source pending; input/storage checks completed')
-                else:screen.preview_current()
-                root.update()
-            finally:
-                if screen:screen.store.close()
-                root.destroy()
+    from desktop_diagnostic import run
+    return run(os.environ.get('FORGEDOCUMENTS_DIAGNOSTIC_DIR'))
+
 
 _instance_handle=None
 

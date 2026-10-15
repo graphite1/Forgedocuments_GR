@@ -5,6 +5,47 @@ from tkinter import ttk
 from page_layout import PAPERS, defaults
 
 
+class InputPrintSettings(ttk.LabelFrame):
+    """Variable ink only. Fixed artwork and its font never use these settings."""
+    def __init__(self,parent,template):
+        super().__init__(parent,text='入力文字の印字（固定背景・固定住所は変えません）',padding=8)
+        import os
+        from pathlib import Path
+        self.fonts={'帳票設定・Windows標準':''}
+        for label,name in (('MS ゴシック','msgothic.ttc'),('メイリオ','meiryo.ttc')):
+            path=Path(os.environ.get('WINDIR','C:/Windows'))/'Fonts'/name
+            if path.is_file():self.fonts[label]=str(path)
+        self.font=tk.StringVar();self.style=tk.StringVar()
+        ttk.Label(self,text='入力の書体').grid(row=0,column=0,sticky='w')
+        self.font_selector=ttk.Combobox(self,textvariable=self.font,state='readonly',width=25)
+        self.font_selector.grid(row=0,column=1,sticky='w')
+        ttk.Label(self,text='印字').grid(row=0,column=2,sticky='w',padx=8)
+        self.styles={'伝票印字':'printer','通常':'plain','従来の太字':'smooth','従来のドット':'impact'}
+        ttk.Combobox(self,textvariable=self.style,values=list(self.styles),state='readonly',width=15).grid(row=0,column=3)
+        self.vars={}
+        self.defaults={'input_density':1,'input_width_scale':1,'input_tracking_em':0,'input_weight_em':.018}
+        for i,(key,label) in enumerate((('input_density','濃さ 35〜100%'),('input_width_scale','字幅 80〜120%'),
+                                       ('input_tracking_em','字間 0〜20%'),('input_weight_em','線の太さ 0〜6%')),1):
+            row,col=1+(i-1)//2,((i-1)%2)*2
+            ttk.Label(self,text=label).grid(row=row,column=col,sticky='w',padx=4,pady=4)
+            v=tk.StringVar();self.vars[key]=v;ttk.Entry(self,textvariable=v,width=10).grid(row=row,column=col+1,sticky='w')
+        ttk.Label(self,text='字間・線の太さは文字サイズに対する割合です。適用・保存してプレビューで確認できます。').grid(row=3,column=0,columnspan=4,sticky='w')
+        self.load(template)
+
+    def load(self,template):
+        path=template.get('input_font_path','')
+        if path not in self.fonts.values():self.fonts['現在の指定']=path
+        self.font_selector['values']=list(self.fonts)
+        self.font.set(next(label for label,value in self.fonts.items() if value==path))
+        self.style.set(next((label for label,value in self.styles.items() if value==template.get('input_print_style','plain')),'通常'))
+        for key,v in self.vars.items():v.set(f"{float(template.get(key,self.defaults[key]))*100:g}")
+
+    def apply(self,template):
+        template['input_font_path']=self.fonts[self.font.get()]
+        template['input_print_style']=self.styles[self.style.get()]
+        for key,v in self.vars.items():template[key]=float(v.get())/100
+
+
 class LayoutSettings(ttk.LabelFrame):
     def __init__(self,parent,template):
         super().__init__(parent,text='用紙・面付け（行＝縦、列＝横）',padding=8)

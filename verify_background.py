@@ -1,6 +1,7 @@
 """Source-pixel composition checks; all assets here are explicit test fixtures."""
 import base64
 import copy
+from contextlib import closing
 import hashlib
 import io
 import json
@@ -151,7 +152,7 @@ class BackgroundChecks(unittest.TestCase):
             self.assertEqual(s.template(),updated)
             self.assertEqual(s.db.execute('SELECT COUNT(*) FROM settings').fetchone()[0],2)
             backup=self.path/'backup.sqlite3';s.backup(backup,updated)
-            with sqlite3.connect(backup) as db:self.assertEqual(json.loads(db.execute('SELECT after_json FROM settings ORDER BY seq DESC LIMIT 1').fetchone()[0]),updated)
+            with closing(sqlite3.connect(backup)) as db:self.assertEqual(json.loads(db.execute('SELECT after_json FROM settings ORDER BY seq DESC LIMIT 1').fetchone()[0]),updated)
         finally:s.close()
         self.assertEqual(old,before)
 
@@ -176,7 +177,7 @@ class BackgroundChecks(unittest.TestCase):
             self.assertEqual(app.store.history(app.current['id']),history)
             self.assertEqual(source.read_bytes(),before)
             backup=self.path/'with-asset.sqlite3';app.store.backup(backup,app.template)
-            with sqlite3.connect(backup) as db:
+            with closing(sqlite3.connect(backup)) as db:
                 saved=json.loads(db.execute('SELECT after_json FROM settings ORDER BY seq DESC LIMIT 1').fetchone()[0])
                 self.assertEqual(saved['background']['sha256'],app.template['background']['sha256'])
                 self.assertEqual(saved['background']['image_png_base64'],app.template['background']['image_png_base64'])
