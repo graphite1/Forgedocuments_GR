@@ -45,9 +45,14 @@ def audit_embedded(exe):
     from tomei_print_font import bundle_files as font_files
     from aktio.asset_files import bundle_files as aktio_files
     reader=CArchiveReader(str(exe));names={str(n).replace('\\','/'):n for n in reader.toc}
-    forbidden=[n for n in names if Path(n).suffix.lower() in ('.pdf','.db','.sqlite3','.xlsx','.key','.pem','.zip') or
+    forbidden=[n for n in names if (Path(n).suffix.lower() in ('.pdf','.db','.sqlite3','.xlsx','.key','.pem','.zip') and n!='base_library.zip') or
                n.startswith(('data/','private/','private-assets/','test-results/')) or Path(n).name in ('ui_settings.json','records.sqlite3')]
     if forbidden:raise ValueError('Forbidden embedded files: '+repr(forbidden))
+    if 'base_library.zip' in names:
+        # PyInstaller's standard-library bytecode container is expected runtime data.
+        with zipfile.ZipFile(io.BytesIO(reader.extract(names['base_library.zip']))) as standard:
+            if standard.testzip() is not None or any(Path(n).suffix!='.pyc' or '..' in Path(n).parts or n.startswith('/') for n in standard.namelist()):
+                raise ValueError('Unexpected content in the standard-library archive')
     expected={p.relative_to(ROOT).as_posix():sha256(p.read_bytes()) for p in [*public_bundle_files(),*font_files(),*aktio_files()]}
     for name,digest in expected.items():
         if name not in names or sha256(reader.extract(names[name]))!=digest:raise ValueError('Embedded asset mismatch: '+name)

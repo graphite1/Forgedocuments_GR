@@ -298,7 +298,7 @@ class Regressions(unittest.TestCase):
             self.assertIsNone(main_app.main());info.assert_called_once();home.assert_not_called()
 
     def test_existing_published_signature_and_tampering_without_private_keys(self):
-        m=json.loads((Path(__file__).parent/'tests/fixtures/forgedocuments-gr-1.3.0.manifest.json').read_text())
+        m=json.loads((Path(__file__).parent/'tests/fixtures/forgedocuments-gr-1.3.0.manifest.json').read_text(encoding='utf-8'))
         self.assertEqual(updates.validate_manifest(m),m)
         for field,value in (('release_notes','changed'),('sha256','0'*64),('app_id','other'),('download_url','https://other.test/file')):
             bad=dict(m);bad[field]=value

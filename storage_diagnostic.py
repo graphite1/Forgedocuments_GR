@@ -111,7 +111,7 @@ def run(directory):
             for row in catalog():home.open(row)
             assert not home.screens
             assert len(errors)==len(catalog()) and all('書き込み可能' in e and '保存先の指定は不要' in e for e in errors)
-            assert (blocked/'data').read_text()=='occupied'
+            assert (blocked/'data').read_text(encoding='utf-8')=='occupied'
         finally:home.dispose()
         results.update(no_storage_picker=True,blocked_write_clear_error=True,blocked_write_no_fallback=True)
     core.atomic_json(directory/'storage-diagnostic.json',dict(results,status='passed'))

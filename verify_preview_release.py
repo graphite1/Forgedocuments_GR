@@ -74,6 +74,9 @@ class PreviewReleaseChecks(unittest.TestCase):
         from aktio.asset_files import bundle_files as aktio_files
         payload={p.relative_to(preview.ROOT).as_posix():p.read_bytes() for p in [*public_bundle_files(),*bundle_files(),*aktio_files()]}
         for n in ('forms.json','template.json','version.json','update_config.json','templates/tomei_taiheiyo.json','templates/aktio_receipt.json'):payload[n]=(preview.ROOT/n).read_bytes()
+        stream=io.BytesIO()
+        with zipfile.ZipFile(stream,'w') as z:z.writestr('encodings/ascii.pyc',b'SYNTHETIC BYTECODE')
+        payload['base_library.zip']=stream.getvalue()
         class Reader:
             def __init__(self,path):self.toc=payload
             def extract(self,name):return payload[name]
@@ -82,7 +85,10 @@ class PreviewReleaseChecks(unittest.TestCase):
             self.assertFalse(preview.audit_embedded('synthetic.exe')['forbidden_embedded_files'])
             payload['original.pdf']=b'not a real PDF'
             with self.assertRaisesRegex(ValueError,'Forbidden'):preview.audit_embedded('synthetic.exe')
-            del payload['original.pdf'];payload['assets/tomei-observed-46-v2.ttf']=b'changed'
+            del payload['original.pdf']
+            payload['user-source.zip']=b'forbidden source archive'
+            with self.assertRaisesRegex(ValueError,'Forbidden'):preview.audit_embedded('synthetic.exe')
+            del payload['user-source.zip'];payload['assets/tomei-observed-46-v2.ttf']=b'changed'
             with self.assertRaisesRegex(ValueError,'mismatch'):preview.audit_embedded('synthetic.exe')
 
     def test_no_token_creation_and_no_non_github_endpoints(self):

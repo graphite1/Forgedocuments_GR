@@ -1,0 +1,6 @@
+# Asset hashes and UTF-8 JSON must survive Windows checkout byte-for-byte.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+*.ttf binary
+*.ico binary

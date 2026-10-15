@@ -10,7 +10,7 @@ from main_app import Home
 
 class AppStorageChecks(unittest.TestCase):
     def setUp(self):
-        self.temp=tempfile.TemporaryDirectory();self.path=Path(self.temp.name)
+        self.temp=tempfile.TemporaryDirectory();self.path=Path(self.temp.name).resolve()
         self.rows=catalog();self.ac=default_definition(self.rows[0]);self.tomei=default_definition(self.rows[1])
 
     def tearDown(self):self.temp.cleanup()
@@ -72,7 +72,7 @@ class AppStorageChecks(unittest.TestCase):
         root=self.path/'blocked';root.mkdir();(root/'data').write_text('occupied',encoding='ascii')
         manager=AppStorage(root)
         with self.assertRaisesRegex(StorageError,'書き込み可能'):manager.prepare(self.ac)
-        self.assertEqual((root/'data').read_text(),'occupied')
+        self.assertEqual((root/'data').read_text(encoding='utf-8'),'occupied')
         with patch('app_storage._probe',side_effect=PermissionError('access denied')):
             with self.assertRaisesRegex(StorageError,'保存先の指定は不要'):AppStorage(self.path/'denied').prepare(self.ac)
 

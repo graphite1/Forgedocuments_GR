@@ -124,8 +124,8 @@ class BackgroundChecks(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'描き直'):validate_policy(bad)
 
     def test_coordinates_compile_mm_without_changing_values_or_fixed_fields(self):
-        coord=json.loads((DEFINITION.parent/'tomei_taiheiyo.coordinates.json').read_text())
-        raw=json.loads(DEFINITION.read_text());compiled=apply_coordinates(raw,coord)
+        coord=json.loads((DEFINITION.parent/'tomei_taiheiyo.coordinates.json').read_text(encoding='utf-8'))
+        raw=json.loads(DEFINITION.read_text(encoding='utf-8'));compiled=apply_coordinates(raw,coord)
         date=next(f for f in compiled['fields'] if f['id']=='delivery_date')
         self.assertEqual(len(date['parts']),3)
         self.assertAlmostEqual(date['parts'][0][0]*compiled['width_mm']/compiled['coordinate_width'],78)

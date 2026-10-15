@@ -10,7 +10,7 @@ class DiagnosticHeadlessChecks(unittest.TestCase):
     def test_packaged_entrypoint_uses_headless_path_and_checks_all_forms(self):
         from main_app import main
         with tempfile.TemporaryDirectory() as p,patch('sys.argv',['app.py','--headless-diagnostic','--diagnostic-output',p,'--cid-font']),patch('tkinter.Tk',side_effect=AssertionError('GUI forbidden')):
-            main();report=json.loads((Path(p)/'headless-diagnostic.json').read_text())
+            main();report=json.loads((Path(p)/'headless-diagnostic.json').read_text(encoding='utf-8'))
             self.assertEqual(report['status'],'passed');self.assertFalse(report['gui_checked'])
             self.assertEqual(set(report['forms']),{'ac_toyoake','tomei_taiheiyo','aktio_receipt'})
             self.assertEqual(len(report['print_font_characters']),46)
