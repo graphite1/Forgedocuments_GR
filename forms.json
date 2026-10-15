@@ -12,5 +12,12 @@
     "description": "42項目の納入予定値を入力・保存。青印字背景と黒文字を合成。署名・着時刻は空欄。",
     "module": "tomei_screen",
     "template": "templates/tomei_taiheiyo.json"
+  },
+  {
+    "id": "aktio_receipt",
+    "title": "AKTIO 計量・運搬計画",
+    "description": "Excel・手入力の計量記録と、計画表示付き運搬予定を分離して保存・PDF・PNG出力",
+    "module": "aktio_screen",
+    "template": "templates/aktio_receipt.json"
   }
 ]

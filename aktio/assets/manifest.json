@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "source": "User-provided AKTIO receipt set; derived blank artwork and numeric atlas only",
+  "original_pdf_included": false,
+  "transaction_data_included": false,
+  "cloud_original_overlay_verified": false,
+  "files": {
+    "a4_blank.png": "404a83fcaf333446e71273c28ebe75f060b12c7aaa51d450a1f4cb4fcaefc4a1",
+    "digits.png": "66a89d2379ce37d5a6128a8a489b28407816b61c8cd40f5b774ed82c5461cb4f",
+    "layout.json": "f25cd1133d460c55c38eb2e652832edc8dcdf192e9d8b9a205f4c6568f01d4c1"
+  }
+}

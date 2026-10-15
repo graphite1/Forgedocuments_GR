@@ -2316,5 +2316,6 @@
   "quantity_summary_title": "選択した納入予定の集計",
   "coordinate_profiles": [
     "tomei_taiheiyo.generated-20261014.coordinates.json"
-  ]
+  ],
+  "input_font_profile": "tomei-sample-digits-v1"
 }

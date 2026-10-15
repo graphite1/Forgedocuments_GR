@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "form_id": "aktio_receipt",
+  "name": "AKTIO 計量・運搬計画",
+  "width_mm": 53.34,
+  "height_mm": 57.57333333333333,
+  "page_mode": "original",
+  "original_margin_mm": 0,
+  "line_color": [
+    0,
+    0,
+    0
+  ],
+  "input_color": [
+    0,
+    0,
+    0
+  ],
+  "line_width": 1,
+  "font_path": "",
+  "fields": [],
+  "fixed_texts": [],
+  "lines": [],
+  "input_print_style": "plain",
+  "dimension_status": "添付セットの300dpi換算値を維持。クラウドで原本PDFとの再照合・実寸印刷は未確認。",
+  "renderer": "aktio.receipt",
+  "storage_purpose": "AKTIO専用の入力・訂正履歴・計画。実測と計画を区別する。"
+}

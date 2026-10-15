@@ -52,7 +52,9 @@ class SampleFontChecks(unittest.TestCase):
         self.assertEqual(font.runs('A漢/ :'),[(fallback,'A漢/ :')])
         with patch('tomei_print_font.validated_file',return_value=None):
             with self.assertRaisesRegex(ValueError,'同梱'):sample.input_font(dict(self.t,input_font_profile=sample.PROFILE),fallback)
-        self.assertEqual(sample.input_font(self.t,fallback),fallback)
+        self.assertIsInstance(sample.input_font(self.t,fallback),InputFont)
+        standard=dict(self.t);standard.pop('input_font_profile',None)
+        self.assertEqual(sample.input_font(standard,fallback),fallback)
         self.assertEqual(sample.input_font(dict(core.load_template(),input_font_profile=sample.PROFILE),fallback),fallback)
 
     def test_mixed_fonts_all_styles_preserve_alpha_and_fixed_artwork(self):

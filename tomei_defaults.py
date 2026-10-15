@@ -30,4 +30,7 @@ def migrate_background(template, default):
     if result.get('layout_profile') == 'generated-20261014' and result.get('plan_overlay_revision',0)<1:
         from tomei_profiles import plan_overlays
         result=plan_overlays(result)
+    # Only adopt the new default when no explicit font choice was stored.
+    if 'input_font_profile' not in result and 'input_font_path' not in result:
+        result['input_font_profile']=default['input_font_profile']
     return result

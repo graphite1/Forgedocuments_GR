@@ -159,7 +159,10 @@ class TomeiChecks(unittest.TestCase):
         with pymupdf.open(none) as a,pymupdf.open(selected) as b:
             for option in field['options']:self.assertNotIn(option['label'],a[0].get_text())
             self.assertNotIn(key,b[0].get_text());self.assertNotEqual(a[0].get_pixmap(dpi=100).samples,b[0].get_pixmap(dpi=100).samples)
-            self.assertEqual(len([s for s in b[0].get_drawings() if s['color']==(0,0,0)]),2)
+            marks=[s for s in b[0].get_drawings() if s['color']==(0,0,0)]
+            self.assertEqual(len(marks),1)
+            self.assertEqual(len(marks[0]['items']),2)
+            self.assertEqual(marks[0]['items'][0][2],marks[0]['items'][1][1])
         for value in ('["unknown"]',json.dumps([key,key]),'{"standard_mix":true}'):
             d['mix_basis']=value;self.assertTrue(core.validate(d,self.t))
 
@@ -211,7 +214,7 @@ class TomeiChecks(unittest.TestCase):
         finally:self.finish(app)
 
     def test_second_form_registered_and_ac_store_unchanged(self):
-        rows=catalog();self.assertEqual([r['id'] for r in rows],['ac_toyoake','tomei_taiheiyo'])
+        rows=catalog();self.assertEqual([r['id'] for r in rows],['ac_toyoake','tomei_taiheiyo','aktio_receipt'])
         ac=self.path/'ac';s=core.Store(ac);s.set_template(core.load_template());s.close();before=(ac/'records.sqlite3').read_bytes()
         concrete=self.path/'concrete';concrete.mkdir();root=tk.Tk();root.withdraw();home=Home(root,{'ac_toyoake':str(ac),'tomei_taiheiyo':str(concrete)},storage_root=self.path/'automatic-install')
         try:

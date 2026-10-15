@@ -1,0 +1,101 @@
+{
+  "dpi": 300,
+  "page_size_px": [
+    2480,
+    3508
+  ],
+  "receipt_crop_px": [
+    925,
+    1414,
+    1555,
+    2094
+  ],
+  "glyph_chars": "0123456789/:",
+  "glyph_size_px": [
+    24,
+    36
+  ],
+  "character_pitch_px": 23.6,
+  "row_skew": -0.004,
+  "fields": {
+    "date": {
+      "x": 1489,
+      "y": 715,
+      "slots": 10
+    },
+    "time": {
+      "x": 1489,
+      "y": 754,
+      "slots": 5
+    },
+    "sn": {
+      "x": 1489,
+      "y": 793,
+      "slots": 4
+    },
+    "a1l": {
+      "x": 1538,
+      "y": 913,
+      "slots": 4
+    },
+    "a1r": {
+      "x": 1750,
+      "y": 911,
+      "slots": 4
+    },
+    "a1sum": {
+      "x": 1749,
+      "y": 950,
+      "slots": 4
+    },
+    "a2l": {
+      "x": 1537,
+      "y": 993,
+      "slots": 4
+    },
+    "a2r": {
+      "x": 1750,
+      "y": 991,
+      "slots": 4
+    },
+    "a2sum": {
+      "x": 1749,
+      "y": 1030,
+      "slots": 4
+    },
+    "a3l": {
+      "x": 1538,
+      "y": 1071,
+      "slots": 4
+    },
+    "a3r": {
+      "x": 1751,
+      "y": 1069,
+      "slots": 4
+    },
+    "a3sum": {
+      "x": 1751,
+      "y": 1109,
+      "slots": 4
+    },
+    "total": {
+      "x": 1515,
+      "y": 1191,
+      "slots": 5
+    }
+  },
+  "source_pdf": "A4_原本.pdf",
+  "calibration": "300dpi原本のOCR文字領域との比較で数値欄を補正",
+  "original_receipt_crop_px": [
+    1320,
+    580,
+    1950,
+    1260
+  ],
+  "placement": "center_on_a4",
+  "receipt_size_mm": [
+    53.34,
+    57.57333333333333
+  ],
+  "print_scale": 1.0
+}

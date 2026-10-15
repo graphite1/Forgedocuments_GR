@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 
 PROFILE='tomei-sample-digits-v1'
-LABEL='生コン専用印字（数字・.-B／他は標準）'
+LABEL='生コン専用印字（基本／未収録字は標準）'
 FILENAME='tomei-sample-digits-qa.ttf'
 SHA256='9511a838776102e226de15a6d5f5f6f33c792e8a4bcd7e30657907b4d0cf7997'
 SUPPORTED=frozenset('0123456789.-B')

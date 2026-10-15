@@ -41,7 +41,7 @@ class InputPrintSettings(ttk.LabelFrame):
         ttk.Label(self,text='透過度：0%=不透明、100%=透明。文字色の濃さはグレー色の調整です。\n字間・線の太さは文字サイズに対する割合です。背景・固定文字は変えません。').grid(row=4,column=0,columnspan=4,sticky='w')
         self.load(template)
         if any('@'+profile in self.fonts.values() for profile in self.sample_profiles):
-            ttk.Label(self,text='数字専用は0–9・小数点・ハイフンだけに適用し、他は標準書体です。\n数字専用を選ぶと通常印字を初期選択します。太さ・透過度は調整できます。').grid(row=5,column=0,columnspan=4,sticky='w')
+            ttk.Label(self,text='基本の専用印字は0–9・小数点・ハイフン・Bに適用。未収録の字は標準書体です。\n数字専用を選ぶと通常印字を初期選択します。太さ・透過度は調整できます。').grid(row=5,column=0,columnspan=4,sticky='w')
 
     def font_selected(self,event=None):
         from tomei_print_font import NUMERIC_PROFILE

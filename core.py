@@ -544,7 +544,11 @@ def render_pdf(path,records,t,validate_records=True):
                                 ink_group=begin_ink(c,input_alpha,(0,0,coord_w,coord_h),f'input_ink_{next(ink_serial)}')
                             c.setStrokeColorRGB(*input_ink);c.setLineWidth(t.get('input_stroke',.5))
                             dx=max(-w*.2,min(w*.2,shift_x));dy=max(-h*.2,min(h*.2,shift_y))
-                            c.line(x+w*.2+dx,y+h*.2+dy,x+w*.8+dx,y+h*.8+dy);c.line(x+w*.2+dx,y+h*.8+dy,x+w*.8+dx,y+h*.2+dy)
+                            if t.get('form_id')=='tomei_taiheiyo':
+                                from tomei_marks import draw_check
+                                draw_check(c,x+dx,y+dy,w,h)
+                            else:
+                                c.line(x+w*.2+dx,y+h*.2+dy,x+w*.8+dx,y+h*.8+dy);c.line(x+w*.2+dx,y+h*.8+dy,x+w*.8+dx,y+h*.2+dy)
                             if is_input:end_ink(c,ink_group)
                             c.restoreState()
                     continue

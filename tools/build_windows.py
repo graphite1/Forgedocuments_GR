@@ -48,6 +48,8 @@ def build(output,unsigned=False,private_background=None,sample_print_font=None,p
     args=[sys.executable,'-m','PyInstaller','--noconfirm','--clean','--onefile','--windowed','--name','Forgedocuments GR','--distpath',str(dest),'--workpath',str(output/'build'),'--specpath',str(output/'spec')]
     args+=public_asset_args()
     args+=approved_font_args()
+    from aktio.asset_files import bundle_files
+    for source in bundle_files():args+=['--add-data',str(source)+':aktio/assets']
     if sample_print_font:
         from tomei_print_font import validated_file,FILENAME
         source=validated_file(Path(sample_print_font).resolve())

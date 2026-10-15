@@ -27,6 +27,8 @@ from verify_numeric_plan import NumericPlanChecks
 from verify_blue_ink import BlueInkChecks
 from verify_app_storage import AppStorageChecks
 from verify_theme_headless import ThemeHeadlessChecks
+from verify_aktio import AktioChecks,AktioScreenHeadlessChecks
+from verify_tomei_font_marks import TomeiFontMarkChecks
 
 
 class KeyFreePlatformChecks(PlatformChecks):
@@ -45,12 +47,17 @@ class KeyFreePlatformChecks(PlatformChecks):
 
 def suite():
     loader=unittest.defaultTestLoader
-    return unittest.TestSuite(loader.loadTestsFromTestCase(c) for c in (Verification,KeyFreePlatformChecks,Regressions,LayoutAndInputs,TomeiChecks,BackgroundChecks,FixedFooterChecks,PublicBackgroundChecks,InputPrintChecks,TransparencyChecks,FontRunChecks,SampleFontChecks,NumericPlanChecks,BlueInkChecks,AppStorageChecks,ThemeHeadlessChecks))
+    return unittest.TestSuite(loader.loadTestsFromTestCase(c) for c in (Verification,KeyFreePlatformChecks,Regressions,LayoutAndInputs,TomeiChecks,BackgroundChecks,FixedFooterChecks,PublicBackgroundChecks,InputPrintChecks,TransparencyChecks,FontRunChecks,SampleFontChecks,NumericPlanChecks,BlueInkChecks,AppStorageChecks,ThemeHeadlessChecks,AktioChecks,AktioScreenHeadlessChecks,TomeiFontMarkChecks))
 
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--cid-font',action='store_true')
+    parser=argparse.ArgumentParser();parser.add_argument('--cid-font',action='store_true');parser.add_argument('--headless',action='store_true',help='Never create a Tk window; GUI-dependent tests are explicitly skipped')
     args=parser.parse_args()
+    from contextlib import ExitStack
+    stack=ExitStack()
+    if args.headless:
+        stack.enter_context(patch('tkinter.Tk',side_effect=unittest.SkipTest('GUI unavailable/prohibited: headless run')))
+        stack.enter_context(patch('tkinter.Toplevel',side_effect=unittest.SkipTest('GUI unavailable/prohibited: headless run')))
     if args.cid_font:
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.cidfonts import UnicodeCIDFont
@@ -60,4 +67,5 @@ if __name__=='__main__':
         with patch('core.font_name',return_value='HeiseiKakuGo-W5'),patch('core.styled_font',side_effect=lambda t,style,default:'HeiseiMin-W3' if style=='serif' else default):
             result=unittest.TextTestRunner(verbosity=2).run(suite())
     else:result=unittest.TextTestRunner(verbosity=2).run(suite())
+    stack.close()
     raise SystemExit(not result.wasSuccessful())

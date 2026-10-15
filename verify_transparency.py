@@ -38,7 +38,7 @@ class TransparencyChecks(unittest.TestCase):
         gray=self.raster('gray50',values,dict(t,input_density=.5))
         transparent=self.raster('alpha100',values,dict(t,input_transparency=1))
         self.assertEqual(transparent,blank)
-        samples=[i for i in range(0,len(blank),3) if blank[i:i+3]==bytes((0,120,255)) and max(opaque[i:i+3])<3]
+        samples=[i for i in range(0,len(blank),3) if blank[i:i+3]==bytes((0,120,255)) and opaque[i:i+3]==bytes((0,0,0))]
         self.assertGreater(len(samples),20)
         for i in samples[::max(1,len(samples)//20)]:
             self.assertLess(half[i],3);self.assertLess(abs(half[i+1]-60),4);self.assertLess(abs(half[i+2]-127),4)

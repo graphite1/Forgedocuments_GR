@@ -81,7 +81,7 @@ class AppStorageChecks(unittest.TestCase):
         with patch('main_app.filedialog.askdirectory',side_effect=AssertionError('Storage picker must never open')),patch('main_app.messagebox.showerror',side_effect=lambda *a,**k:errors.append(a)):
             home=Home(root,{},storage_root=self.path/'shell')
             try:
-                for row in self.rows:home.open(row);root.update()
+                for row in self.rows[:2]:home.open(row);root.update()
                 self.assertFalse(errors);self.assertEqual(set(home.screens),{'ac_toyoake','tomei_taiheiyo'})
                 ac=home.screens['ac_toyoake'];tomei=home.screens['tomei_taiheiyo']
                 values={}
@@ -90,7 +90,7 @@ class AppStorageChecks(unittest.TestCase):
                 ac_color=copy.deepcopy(ac.template['line_color']);tomei_color=copy.deepcopy(tomei.template['line_color'])
                 tomei.blue_ink_settings.value.set('55');tomei.save_settings()
                 self.assertEqual(ac.template['line_color'],ac_color);self.assertEqual(tomei.template['line_color'],tomei_color)
-                for row in self.rows:
+                for row in self.rows[:2]:
                     screen=home.screens[row['id']];screen.new(check=False);screen.close();home.open(row);root.update()
                     reopened=home.screens[row['id']]
                     self.assertEqual(reopened.store.list()[0]['data'],values[row['id']])
