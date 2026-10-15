@@ -212,6 +212,11 @@ def publish(output,source,tag,client):
     return result
 
 
+def print_result(result):
+    # CLI pipes on English Windows can still use cp1252; keep logs portable.
+    print(json.dumps(result,ensure_ascii=True,indent=2))
+
+
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('operation',choices=['guard','audit','publish'])
     parser.add_argument('--source',required=True);parser.add_argument('--tag');parser.add_argument('--output',type=Path);parser.add_argument('--tests',type=Path)
@@ -219,4 +224,4 @@ if __name__=='__main__':
     if args.operation=='guard':result=guard(client,args.source,args.tag)
     elif args.operation=='audit':result=verify_build(args.output,args.source,args.tests)
     else:result=publish(args.output,args.source,args.tag,client)
-    print(json.dumps(result,ensure_ascii=False,indent=2))
+    print_result(result)

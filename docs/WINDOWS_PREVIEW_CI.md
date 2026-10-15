@@ -17,3 +17,5 @@ Publication initially creates a draft with `prerelease=true`, `make_latest="fals
 Physical printing, original-PDF overlay and Windows 10/11 desktop GUI remain unverified even after a successful packaged headless diagnostic. The exact execution evidence belongs in preview-validation.json and the Actions run, not an assumed success statement.
 
 Windows checkout uses repository attributes to retain LF bytes in hashed JSON/assets. Test reads explicitly use UTF-8, and storage path assertions resolve Windows short-name aliases before comparison. The first cloud attempt stopped before building on these portability checks; a corrected source SHA must pass fresh Windows execution before publication.
+
+The second Windows execution passed all source checks, built the EXE and completed its headless audit, then stopped before publication while printing Japanese report text to a cp1252 console pipe. CLI result output now uses JSON Unicode escapes, tested against a cp1252 stream; the workflow also explicitly selects UTF-8 for Python standard I/O. This does not change the encoding of application data files.
