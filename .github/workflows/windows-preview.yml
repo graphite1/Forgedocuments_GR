@@ -16,7 +16,7 @@ concurrency:
 
 env:
   # Audited source commit; the workflow-only commit is not the release target.
-  SOURCE_SHA: 42747e0f239336750651a28e51ebb8b8db8fab57
+  SOURCE_SHA: be6af7888d4ccbd7945e89323de651d4523a0da3
   PREVIEW_TAG: v1.3.14-preview.1
   PYTHONDONTWRITEBYTECODE: '1'
   PYTHONIOENCODING: utf-8

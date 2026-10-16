@@ -66,6 +66,17 @@ def audit_embedded(exe):
     return dict(embedded_asset_sha256=expected,forbidden_embedded_files=[])
 
 
+def run_source_bat(command,folder,environment,timeout):
+    # cmd.exe parses its own quotes, unlike the C-runtime quoting of a list.
+    # The commands/BAT names are fixed here; paths come only from our temp folder.
+    cmd=os.environ.get('COMSPEC','cmd.exe')
+    line='"'+cmd+'" /d /s /c "'+command+'"'
+    try:subprocess.run(line,cwd=folder,env=environment,check=True,timeout=timeout,capture_output=True)
+    except subprocess.CalledProcessError as error:
+        detail=((error.stdout or b'')+(error.stderr or b'')).decode('utf-8',errors='replace')[-6000:]
+        raise RuntimeError('Source BAT validation failed (exit '+str(error.returncode)+'): '+detail) from None
+
+
 def verify_build(output,source,test_report):
     if sys.platform!='win32':raise ValueError('Packaged EXE validation requires Windows')
     source_check(source);output=Path(output);v=version()
@@ -78,7 +89,7 @@ def verify_build(output,source,test_report):
         raise ValueError('Headless source test evidence did not pass')
     # Use a fresh extraction, never the source tree, install folder or a user profile.
     with tempfile.TemporaryDirectory(prefix='forge-exe-') as temp:
-        temp=Path(temp);app=temp/'app';app.mkdir()
+        temp=Path(temp);app=temp/'app extracted';app.mkdir()
         with zipfile.ZipFile(archive) as package:package.extractall(app)
         environment=dict(os.environ,APPDATA=str(temp/'profile'),LOCALAPPDATA=str(temp/'local'),FORGEDOCUMENTS_INSTALL_ROOT=str(app),FORGEDOCUMENTS_SKIP_ROUTE='1')
         fonts=Path(environment.get('WINDIR','C:/Windows'))/'Fonts'
@@ -91,17 +102,16 @@ def verify_build(output,source,test_report):
             raise ValueError('Packaged headless diagnostic did not pass')
         if set(diagnostic.get('forms',{}))!={'ac_toyoake','tomei_taiheiyo','aktio_receipt'}:raise ValueError('A form was not checked')
         source_folder=app/'source'
-        cmd=os.environ.get('COMSPEC','cmd.exe')
-        subprocess.run([cmd,'/d','/c','call setup_source.bat'],cwd=source_folder,env=environment,check=True,timeout=300,capture_output=True)
-        source_diag=temp/'source-diagnostic'
+        run_source_bat('call setup_source.bat',source_folder,environment,300)
+        source_diag=temp/'source diagnostic'
         command='call start_source.bat --headless-diagnostic --diagnostic-output '+chr(34)+str(source_diag)+chr(34)+(' --cid-font' if cid else '')
-        subprocess.run([cmd,'/d','/c',command],cwd=source_folder,env=environment,check=True,timeout=180,capture_output=True)
+        run_source_bat(command,source_folder,environment,180)
         source_result=json.loads((source_diag/'headless-diagnostic.json').read_text(encoding='utf-8'))
         if source_result.get('status')!='passed' or source_result.get('windows_executable') is not False:raise ValueError('Source BAT path did not pass')
         from source_bootstrap import environment as source_environment
         probe="from pathlib import Path; from updates import install_root; from main_app import profiles_path; import sys; expected=Path(sys.argv[1]).resolve(); assert install_root()==expected; assert profiles_path().is_relative_to(expected); from app_storage import AppStorage; from form_registry import catalog,default_definition; m=AppStorage(install_root()); assert all(m.prepare(default_definition(r)).is_relative_to(expected) for r in catalog()); print('source storage isolated')"
         subprocess.run([str(source_folder/'.source-venv/Scripts/python.exe'),'-B','-c',probe,str(source_folder/'source-runtime')],cwd=source_folder,env=source_environment(source_folder),check=True,timeout=60,capture_output=True)
-        source_bat=dict(status='passed',setup_bat=True,start_bat=True,clean_extraction=True,venv_isolated=True,storage_isolated_from_exe=True,gui_checked=False,forms=source_result['forms'])
+        source_bat=dict(status='passed',setup_bat=True,start_bat=True,clean_extraction=True,venv_isolated=True,storage_isolated_from_exe=True,paths_with_spaces=True,gui_checked=False,forms=source_result['forms'])
         audit_zip(archive,source)  # Diagnostic writes must never enter the distributable.
     report=dict(artifact_type='unsigned_windows_prerelease',source_commit=source,version=v['version'],sequence=v['sequence'],
                 archive=archive.name,sha256=sha256(archive.read_bytes()),size_bytes=archive.stat().st_size,
