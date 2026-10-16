@@ -55,7 +55,7 @@ class PreviewReleaseChecks(unittest.TestCase):
         import source_bootstrap as launcher
         from unittest.mock import Mock
         with tempfile.TemporaryDirectory() as temp:
-            root=Path(temp);env=launcher.environment(root)
+            root=Path(temp).resolve();env=launcher.environment(root)
             self.assertEqual(Path(env['FORGEDOCUMENTS_INSTALL_ROOT']),root/'source-runtime')
             self.assertEqual(Path(env['APPDATA']),root/'source-runtime/profile')
             self.assertEqual(env.get('PATH'),__import__('os').environ.get('PATH'))
