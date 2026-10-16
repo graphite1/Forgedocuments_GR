@@ -188,13 +188,13 @@ def validate_plan(records,config,vehicles):
         if counts.get(v['vehicle'],0)!=runs+1 or trips.get(v['vehicle'],set())!=set(range(1,runs+2)):raise ValueError('空車1回＋設定した運搬回数と生成された計量回数が一致しません')
     return True
 
-def export_plan(records,config,vehicles,folder,paper='a4'):
+def export_plan(records,config,vehicles,folder,paper='a4',notice_color='charcoal'):
     validate_plan(records,config,vehicles)
     folder=Path(folder);folder.mkdir(parents=True,exist_ok=False)
     images=[]
     for record in records:
         if record.get('mode')!='simulation': raise ValueError('試算データ以外を計画出力へ混在させないでください')
-        image,name=render_receipt(record,folder,paper=paper);images.append(folder/(name+'.png'))
+        image,name=render_receipt(record,folder,paper=paper,notice_color=notice_color);images.append(folder/(name+'.png'))
     if images:
         from .pdf_bundle import combine_png_pages
         combine_png_pages(images,folder/'全レシート.pdf')

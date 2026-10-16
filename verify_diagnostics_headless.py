@@ -14,7 +14,7 @@ class DiagnosticHeadlessChecks(unittest.TestCase):
             self.assertEqual(report['status'],'passed');self.assertFalse(report['gui_checked'])
             self.assertEqual(set(report['forms']),{'ac_toyoake','tomei_taiheiyo','aktio_receipt'})
             self.assertEqual(len(report['print_font_characters']),46)
-            self.assertTrue(report['forms']['aktio_receipt']['plan_notice_inside_every_receipt'])
+            self.assertTrue(report['forms']['aktio_receipt']['specimen_notice_outside_every_receipt'])
 
     def test_desktop_dispatch_does_not_use_generic_screen_attributes_for_aktio(self):
         import desktop_diagnostic

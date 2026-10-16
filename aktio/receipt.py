@@ -187,30 +187,9 @@ def receipt_layout():
     return root,json.loads((root/'layout.json').read_text(encoding='utf-8'))
 
 
-def plan_notice():
-    """Render Japanese via existing PDF dependencies; no OS font installation."""
-    return _plan_notice().copy()
-
-
-from functools import lru_cache
-@lru_cache(maxsize=1)
-def _plan_notice():
-    import io
-    import pymupdf
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-    from reportlab.pdfgen.canvas import Canvas
-    name='HeiseiKakuGo-W5'
-    if name not in pdfmetrics.getRegisteredFontNames():pdfmetrics.registerFont(UnicodeCIDFont(name))
-    stream=io.BytesIO();c=Canvas(stream,pagesize=(130,50))
-    c.setFillColorRGB(1,1,1);c.rect(0,0,130,50,stroke=0,fill=1)
-    c.setFillColorRGB(0,0,0);c.setFont(name,40);c.drawString(4,8,'計画')
-    c.setFont('Helvetica-Bold',12);c.drawString(87,12,'PLAN');c.save()
-    with pymupdf.open(stream=stream.getvalue(),filetype='pdf') as pdf:
-        pix=pdf[0].get_pixmap(alpha=False)
-        return Image.frombytes('RGB',(pix.width,pix.height),pix.samples)
-
-def render_receipt_image(record, placement='center'):
+def render_receipt_image(record, placement='center', notice_color='charcoal'):
+    from .output_layout import checked_color,notice_image,notice_box,NOTICE_GAP
+    checked_color(notice_color)
     if record.get('mode') not in ('simulation','measured'):
         raise ValueError('計画・実測の区分を確認できません')
     if date_text(record['date'])!=record['date'] or time_text(record['time'])!=record['time']:
@@ -243,23 +222,31 @@ def render_receipt_image(record, placement='center'):
             x=round(f['x']+(start+index)*pitch)
             y=round(f['y']+layout['row_skew']*index*pitch)
             image.paste(glyph.convert('RGB'),(x,y))
-    if record['mode']=='simulation':
-        # Inside the receipt crop, right of TOTAL; retained at every paper size.
-        image.paste(plan_notice(),(1740,1180))
-    if placement=='reference':return image
     crop=layout.get('original_receipt_crop_px',[1320,580,1950,1260])
+    if placement=='reference':
+        if record['mode']=='simulation':
+            label=notice_image(notice_color)
+            image.paste(label,(crop[0]+(crop[2]-crop[0]-label.width)//2,crop[3]+NOTICE_GAP))
+        return image
     receipt=image.crop(crop)
     page=Image.new('RGB',image.size,'white')
     at=((page.width-receipt.width)//2,(page.height-receipt.height)//2)
     page.paste(receipt,at)
+    if record['mode']=='simulation':page.paste(notice_image(notice_color),notice_box(record,layout)[:2])
     return page
 
-def render_receipt(record, folder, paper='a4'):
-    image=render_receipt_image(record)
+
+def output_image(record,paper='a4',notice_color='charcoal'):
+    from .output_layout import output_box
+    image=render_receipt_image(record,notice_color=notice_color)
     if paper=='receipt':
-        _,layout=receipt_layout();image=image.crop(layout['receipt_crop_px'])
-    elif paper!='a4':raise ValueError('出力用紙を確認してください')
-    prefix='AKTIO_計画' if record['mode']=='simulation' else 'AKTIO_実測'
+        _,layout=receipt_layout();return image.crop(output_box(record,layout))
+    if paper!='a4':raise ValueError('出力用紙を確認してください')
+    return image
+
+def render_receipt(record, folder, paper='a4',notice_color='charcoal'):
+    image=output_image(record,paper,notice_color)
+    prefix='AKTIO_出力見本' if record['mode']=='simulation' else 'AKTIO_実測'
     name=f'{prefix}_{record["date"].replace("/","-")}_{record["time"].replace(":","-")}_SN{record["sn"]}_row{record["excel_row"]}'
     image.save(folder/(name+'.png'),dpi=(300,300))
     image.save(folder/(name+'.pdf'),resolution=300)

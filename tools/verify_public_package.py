@@ -101,8 +101,8 @@ with tempfile.TemporaryDirectory() as data,patch('tkinter.Tk',side_effect=Assert
  c=dict(date='2030-01-02',start='07:00',end='17:00',breaks=[['12:00','13:00']],measurement_mode='count',first_sn=1,seed=0)
  v=dict(vehicle='SYNTHETIC',runs=2,tare_kg=11180,max_payload_kg=10000,max_gross_kg=21180,target_payload_kg=9000,weight_jitter_kg=500)
  records=make_plan(c,[v]);image,name=render_receipt(records[0],Path(data),paper='receipt')
- assert '計画' in name and image.size==(630,680)
- print(json.dumps({'isolated_source_imports':True,'gui_executed':False,'private_workspace_needed':False,'form_storage_isolated':True,'approved_numeric_font_validated':True,'aktio_blank_assets_validated':True,'four_up_notices_per_page':[4,1],'aktio_receipt_pixels':[630,680],'windows_exe_generated':False,'windows_gui_and_printing_verified':False,'font':'Japanese CID substitute'}))
+ assert '出力見本' in name and image.size==(630,776)
+ print(json.dumps({'isolated_source_imports':True,'gui_executed':False,'private_workspace_needed':False,'form_storage_isolated':True,'approved_numeric_font_validated':True,'aktio_blank_assets_validated':True,'four_up_notices_per_page':[4,1],'aktio_receipt_pixels':[630,776],'windows_exe_generated':False,'windows_gui_and_printing_verified':False,'font':'Japanese CID substitute'}))
 '''
 
 

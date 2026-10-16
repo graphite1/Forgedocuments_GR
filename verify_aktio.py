@@ -30,7 +30,7 @@ def actual_item():
 def document():
     c,v=fixture()
     return dict(form_id='aktio_receipt',schema_version=1,settings={},vehicles=v,records=make_plan(c,v),generated_config=c,generated_vehicles=v,
-                measured_records=[actual_item()],paper='A4中央',measurement_mode='fixed')
+                measured_records=[actual_item()],paper='A4中央',measurement_mode='fixed',sample_notice_color='charcoal')
 
 
 class AktioChecks(unittest.TestCase):
@@ -63,45 +63,71 @@ class AktioChecks(unittest.TestCase):
         bad=copy.deepcopy(v);bad.append(dict(v[0],vehicle='OTHER'))
         with self.assertRaises(ValueError):make_plan(c,bad)
 
-    def test_every_plan_path_has_notice_inside_receipt_and_actual_remains_distinct(self):
-        c,v=fixture();r=make_plan(c,v)[1];actual=dict(r,mode='measured')
-        plan=receipt.render_receipt_image(r);measured=receipt.render_receipt_image(actual)
+    def test_outside_notice_colors_body_identity_and_all_output_paths(self):
+        from aktio.output_layout import NOTICE_COLORS,notice_box,notice_image,white_contrast
+        from aktio.printing import print_payloads,payload_rectangle,check_printable
+        c,v=fixture();records=make_plan(c,v);r=records[1];actual=dict(r,mode='measured')
         _,layout=receipt.receipt_layout();box=layout['receipt_crop_px']
-        self.assertIsNotNone(ImageChops.difference(plan.crop(box),measured.crop(box)).getbbox())
-        self.assertIsNone(ImageChops.difference(plan,measured).crop((0,0,900,3508)).getbbox())
-        # Direct printing calls the same marked renderer; record order is untouched.
-        import inspect,aktio.printing
-        self.assertIn('render_receipt_image(record)',inspect.getsource(aktio.printing.print_records))
+        measured=receipt.render_receipt_image(actual)
         with tempfile.TemporaryDirectory() as temp:
-            folder=Path(temp)
-            for paper,size in [('a4',(2480,3508)),('receipt',(630,680))]:
-                image,name=receipt.render_receipt(r,folder,paper)
-                self.assertIn('計画',name);self.assertEqual(image.size,size)
-                expected=plan if paper=='a4' else plan.crop(box)
-                with Image.open(folder/(name+'.png')) as saved:self.assertEqual(saved.tobytes(),expected.tobytes())
-                with pymupdf.open(folder/(name+'.pdf')) as pdf:
-                    self.assertAlmostEqual(pdf[0].rect.width,size[0]*72/300,places=2)
-                    self.assertAlmostEqual(pdf[0].rect.height,size[1]*72/300,places=2)
-                    pix=pdf[0].get_pixmap(matrix=pymupdf.Matrix(300/72,300/72))
-                    rendered=Image.frombytes('RGB',(pix.width,pix.height),pix.samples)
-                    if paper=='a4':rendered=rendered.crop(box)
-                    # The notice is in the last 100 px of the real-size receipt.
-                    self.assertLess(rendered.crop((400,580,600,650)).convert('L').getextrema()[0],100)
+            for color,(_,rgb) in NOTICE_COLORS.items():
+                self.assertGreaterEqual(white_contrast(rgb),7)
+                plan=receipt.render_receipt_image(r,notice_color=color)
+                self.assertEqual(plan.crop(box).tobytes(),measured.crop(box).tobytes())
+                self.assertEqual(plan.crop(notice_box(r,layout)).tobytes(),notice_image(color).tobytes())
+                # No non-white pixels occur outside the original body and text-only footer.
+                outside=plan.copy();outside.paste('white',box);outside.paste('white',notice_box(r,layout))
+                self.assertIsNone(ImageChops.difference(outside,Image.new('RGB',outside.size,'white')).getbbox())
+                for paper,size in [('a4',(2480,3508)),('receipt',(630,776))]:
+                    folder=Path(temp)/color/paper;folder.mkdir(parents=True)
+                    image,name=receipt.render_receipt(r,folder,paper,notice_color=color)
+                    self.assertIn('出力見本',name);self.assertEqual(image.size,size)
+                    with Image.open(folder/(name+'.png')) as saved:self.assertEqual(saved.tobytes(),image.tobytes())
+                    with pymupdf.open(folder/(name+'.pdf')) as pdf:
+                        self.assertAlmostEqual(pdf[0].rect.width,size[0]*72/300,places=2)
+                        self.assertAlmostEqual(pdf[0].rect.height,size[1]*72/300,places=2)
+                        pix=pdf[0].get_pixmap(matrix=pymupdf.Matrix(300/72,300/72),alpha=False)
+                        rendered=Image.frombytes('RGB',(pix.width,pix.height),pix.samples)
+                        text=rendered.crop(notice_box(r,layout,paper=paper))
+                        self.assertLess(text.convert('L').getextrema()[0],90)
+                    images,geom,mm=print_payloads([r,actual],paper,color)
+                    self.assertEqual(images[0].tobytes(),receipt.output_image(r,'receipt',color).tobytes())
+                    self.assertEqual(images[1].size,(630,680))
+                    pw,ph=(2480,3508) if paper=='a4' else (630,776)
+                    rect=payload_rectangle(images[0],geom,paper,300,300,pw,ph,0,0)
+                    self.assertEqual(rect,(925,1414,1555,2190) if paper=='a4' else (0,0,630,776))
+                    check_printable(images[0],rect,pw,ph)
+                    with self.assertRaises(OSError):check_printable(images[0],rect,pw,rect[1]+700)
+            self.assertEqual(receipt.output_image(actual,'receipt').size,(630,680))
+            for invalid in ('white','transparent','#ffffff','',None):
+                with self.assertRaises(ValueError):receipt.output_image(r,notice_color=invalid)
             unknown=dict(r);unknown.pop('mode')
             with self.assertRaisesRegex(ValueError,'区分'):receipt.render_receipt_image(unknown)
 
     def test_all_plan_pdf_png_pages_and_print_geometry(self):
-        c,v=fixture();records=make_plan(c,v)
+        from aktio.output_layout import NOTICE_COLORS,notice_box
+        c,v=fixture();records=make_plan(c,v);_,layout=receipt.receipt_layout()
         with tempfile.TemporaryDirectory() as temp:
-            path=export_plan(records,c,v,Path(temp)/'export',paper='receipt')
-            self.assertEqual(len(list(path.glob('*.png'))),3)
-            with pymupdf.open(path/'全レシート.pdf') as pdf:
-                self.assertEqual(len(pdf),3)
-                self.assertAlmostEqual(pdf[0].rect.width,53.34*72/25.4,places=2)
-            saved=json.loads((path/'運搬記録.json').read_text(encoding='utf-8'));self.assertEqual(saved['records'],records)
+            for paper in ('a4','receipt'):
+                path=export_plan(records,c,v,Path(temp)/paper,paper=paper,notice_color='navy')
+                self.assertEqual(len(list(path.glob('*.png'))),3)
+                with pymupdf.open(path/'全レシート.pdf') as pdf:
+                    self.assertEqual(len(pdf),3)
+                    for page in pdf:
+                        pix=page.get_pixmap(matrix=pymupdf.Matrix(300/72,300/72),alpha=False)
+                        image=Image.frombytes('RGB',(pix.width,pix.height),pix.samples)
+                        self.assertLess(image.crop(notice_box(records[0],layout,paper=paper)).convert('L').getextrema()[0],90)
+                saved=json.loads((path/'運搬記録.json').read_text(encoding='utf-8'));self.assertEqual(saved['records'],records)
         self.assertEqual(print_rectangle(53.34,57.5733333333,300,300,2480,3508,0,0),(925,1414,1555,2094))
         with patch('aktio.printing.os.name','posix'):
             with self.assertRaises(OSError):print_records(records)
+
+    def test_notice_color_migration_invalid_values_and_history_preservation(self):
+        old=document();old.pop('sample_notice_color');before=copy.deepcopy(old)
+        migrated=checked_document(old);self.assertEqual(old,before)
+        self.assertEqual(migrated.pop('sample_notice_color'),'charcoal');self.assertEqual(migrated,old)
+        for color in ('white','transparent','#fff',None):
+            with self.assertRaises(ValueError):checked_document(dict(old,sample_notice_color=color))
 
     def test_session_reopen_keeps_measured_plan_and_correction_history_separate(self):
         data=document()
@@ -205,15 +231,26 @@ class AktioScreenHeadlessChecks(unittest.TestCase):
             callback(values)
         with patch.object(app,'form_dialog',enter):app.add_actual();app.edit_actual()
         self.assertEqual(len(app.records[0]['changes']),2);self.assertFalse(app.records[0]['new'])
-        self.assertEqual(app.records[0]['record']['mode'],'measured');self.assertTrue(app.autosave())
+        self.assertEqual(app.records[0]['record']['mode'],'measured');app.notice_color.set('濃紺');self.assertTrue(app.autosave())
         expected=copy.deepcopy(app.document());app.store.close()
         app=Application(self.root,self.folder);self.app=app
-        self.assertEqual(app.document(),expected);self.assertEqual(app.paper_kind(),'a4')
+        self.assertEqual(app.document(),expected);self.assertEqual(app.paper_kind(),'a4');self.assertEqual(app.notice_color_key(),'navy')
         app.tabs.select.return_value=str(app.plan_tab);app.plan_tree.selection_set('1')
         sent=[]
-        with patch('aktio.printing.print_records',side_effect=lambda records,**kw:sent.extend(records) or True):app.direct_print(True)
+        with patch('aktio.printing.print_records',side_effect=lambda records,**kw:sent.extend(records) or True) as printer:app.direct_print(True)
+        self.assertEqual(printer.call_args.kwargs['notice_color'],'navy')
         self.assertEqual(len(sent),1);self.assertEqual(sent[0]['mode'],'simulation')
         self.assertEqual(sent[0]['sn'],'0005')
+        from unittest.mock import MagicMock
+        with patch('aktio.ui.tk.Toplevel',MagicMock()),patch('aktio.ui.ImageTk.PhotoImage',MagicMock()),patch('aktio.ui.receipt.output_image',wraps=receipt.output_image) as render:
+            app.preview(app.plan,app.plan_tree)
+            self.assertEqual([call.args[1:] for call in render.call_args_list],[('a4','navy'),('receipt','navy')])
+        folder=Path(self.temp.name)/'single'
+        with patch.object(app,'choose_output',return_value=folder),patch.object(app,'background',lambda work,done:work()):app.export_selected()
+        from aktio.output_layout import notice_box,notice_image
+        _,layout=receipt.receipt_layout()
+        with Image.open(next(folder.glob('*.png'))) as png:
+            self.assertEqual(png.crop(notice_box(app.plan[1],layout)).tobytes(),notice_image('navy').tobytes())
 
     def test_invalid_import_preserves_live_state_and_database(self):
         app=self.app;self.assertTrue(app.autosave());before=copy.deepcopy(app.document())
