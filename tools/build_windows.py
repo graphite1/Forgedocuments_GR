@@ -95,10 +95,22 @@ def build(output,unsigned=False,private_background=None,sample_print_font=None,p
         with (dest/'README.txt').open('a',encoding='utf-8-sig') as note:
             note.write('\nLOCAL CONFIRMATION ONLY: unpublished additional changes. Do not publish this EXE or ZIP without separate approval. Existing 1.3.10 release is unchanged.\n')
         files['README.txt']=hashlib.sha256((dest/'README.txt').read_bytes()).hexdigest()
+    if prerelease_preview:
+        from tools.source_bundle import stage
+        source_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+        if subprocess.check_output(['git','status','--porcelain'],cwd=ROOT,text=True).strip():raise ValueError('Source bundle requires a clean committed checkout')
+        stage(dest/'source',source_commit)
+        from aktio.diagnostics import synthetic_document
+        from aktio.receipt import output_image
+        examples=dest/'examples';examples.mkdir()
+        output_image(synthetic_document()['records'][1],'receipt').save(examples/'AKTIO-output-sample.png',dpi=(300,300))
+        with (dest/'README.txt').open('a',encoding='utf-8-sig') as note:note.write('\nソースコード版もsourceフォルダーへ同梱しています。Python 3.14 x64が必要です。初回はsource/SOURCE_README_JA.txtを読み、setup_source.batで専用venvと依存を準備してからstart_source.batで起動してください。ソース版の保存先はsource/source-runtimeで、EXE版のdataと分離します。examplesは合成データの出力見本です。\n')
+    files={p.relative_to(dest).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in dest.rglob('*') if p.is_file() and p.name!='release_files.json'}
     (dest/'release_files.json').write_text(json.dumps(files,ensure_ascii=False,sort_keys=True,indent=2),encoding='utf-8')
     archive=output/f"Forgedocuments_GR-{v['version']}-windows-x64.zip"
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
-        for p in sorted(dest.iterdir()):z.write(p,p.name)
+        for p in sorted(dest.rglob('*')):
+            if p.is_file():z.write(p,p.relative_to(dest).as_posix())
     notes_path=ROOT/'docs'/f"RELEASE_NOTES_{v['version']}.txt"
     notes=notes_path.read_text(encoding='utf-8').strip() if notes_path.exists() else '帳票アプリの更新。既存の記録と独自設定を保持。'
     manifest={'schema_version':1,'app_id':cfg['app_id'],'version':v['version'],'sequence':v['sequence'],'minimum_updater_version':'1.0.0','published_at':datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z'),'release_notes':notes,'download_url':cfg['hub_url']+f"/api/apps/{cfg['app_id']}/releases/{v['sequence']}/download",'sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'key_id':cfg['key_id']}

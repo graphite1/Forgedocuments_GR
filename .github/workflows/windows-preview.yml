@@ -16,8 +16,8 @@ concurrency:
 
 env:
   # Audited source commit; the workflow-only commit is not the release target.
-  SOURCE_SHA: e31d6a32b3407ac7b4b7bc0018091c68b2ea6209
-  PREVIEW_TAG: v1.3.13-preview.1
+  SOURCE_SHA: 777cd7ff8a91d6cfb47dd7ff912d2522d4e09ceb
+  PREVIEW_TAG: v1.3.14-preview.1
   PYTHONDONTWRITEBYTECODE: '1'
   PYTHONIOENCODING: utf-8
 
@@ -64,7 +64,7 @@ jobs:
           python -B tools/build_windows.py --unsigned --prerelease-preview --output "$env:RUNNER_TEMP/forge-preview"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Audit bundle and run extracted EXE without GUI
+      - name: Audit bundle and run clean-extraction EXE and source BAT without GUI
         run: |
           python -B tools/preview_release.py audit --source "$env:SOURCE_SHA" --output "$env:RUNNER_TEMP/forge-preview" --tests "$env:RUNNER_TEMP/forge-source-tests.json"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -21,19 +21,24 @@ def source_check(source):
     if subprocess.check_output(['git','status','--porcelain'],cwd=ROOT,text=True).strip():raise ValueError('Source checkout is not clean')
 
 
-def audit_zip(path):
+def audit_zip(path,source=None):
     with zipfile.ZipFile(path) as archive:
         if archive.testzip() is not None:raise ValueError('ZIP CRC failed')
         names=archive.namelist()
-        if len(names)!=len(set(names)) or set(names)!=PACKAGE_NAMES:raise ValueError('Unexpected package members')
+        if len(names)!=len(set(names)) or not PACKAGE_NAMES<=set(names):raise ValueError('Unexpected package members')
+        if any('\\' in n or n.startswith('/') or ':' in n or '..' in Path(n).parts or not (n in PACKAGE_NAMES or n.startswith('source/') or n=='examples/AKTIO-output-sample.png') for n in names):raise ValueError('Unexpected package members')
+        from tools.source_bundle import audit
+        source=source or json.loads(archive.read('source/source-manifest.json'))['source_commit']
+        audit(archive.read,names,source)
         manifest=json.loads(archive.read('release_files.json'))
-        if set(manifest)!=PACKAGE_NAMES-{'release_files.json'}:raise ValueError('Unexpected release file manifest')
+        if set(manifest)!=set(names)-{'release_files.json'}:raise ValueError('Unexpected release file manifest')
         for name,digest in manifest.items():
             if sha256(archive.read(name))!=digest:raise ValueError('Package hash mismatch: '+name)
         for name in ('template.json','forms.json','version.json','update_config.json'):
             if archive.read(name)!=(ROOT/name).read_bytes():raise ValueError('Package definition differs from source: '+name)
         bundled=json.loads(archive.read('version.json'))
         if bundled!=version():raise ValueError('Package version differs from source')
+        if 'examples/AKTIO-output-sample.png' not in names:raise ValueError('Output specimen image missing')
         if 'Unsigned prerelease for validation' not in archive.read('README.txt').decode('utf-8-sig'):
             raise ValueError('Unsigned preview notice missing')
     return manifest
@@ -65,7 +70,7 @@ def verify_build(output,source,test_report):
     if sys.platform!='win32':raise ValueError('Packaged EXE validation requires Windows')
     source_check(source);output=Path(output);v=version()
     archive=output/f"Forgedocuments_GR-{v['version']}-windows-x64.zip"
-    audit_zip(archive)
+    audit_zip(archive,source)
     exe=output/f"Forgedocuments_GR-{v['version']}-windows-x64"/'Forgedocuments GR.exe'
     embedded=audit_embedded(exe)
     tests=json.loads(Path(test_report).read_text(encoding='utf-8'))
@@ -85,10 +90,22 @@ def verify_build(output,source,test_report):
         if diagnostic.get('status')!='passed' or diagnostic.get('windows_executable') is not True or diagnostic.get('gui_checked') is not False:
             raise ValueError('Packaged headless diagnostic did not pass')
         if set(diagnostic.get('forms',{}))!={'ac_toyoake','tomei_taiheiyo','aktio_receipt'}:raise ValueError('A form was not checked')
-        audit_zip(archive)  # Diagnostic writes must never enter the distributable.
+        source_folder=app/'source'
+        cmd=os.environ.get('COMSPEC','cmd.exe')
+        subprocess.run([cmd,'/d','/c','call setup_source.bat'],cwd=source_folder,env=environment,check=True,timeout=300,capture_output=True)
+        source_diag=temp/'source-diagnostic'
+        command='call start_source.bat --headless-diagnostic --diagnostic-output '+chr(34)+str(source_diag)+chr(34)+(' --cid-font' if cid else '')
+        subprocess.run([cmd,'/d','/c',command],cwd=source_folder,env=environment,check=True,timeout=180,capture_output=True)
+        source_result=json.loads((source_diag/'headless-diagnostic.json').read_text(encoding='utf-8'))
+        if source_result.get('status')!='passed' or source_result.get('windows_executable') is not False:raise ValueError('Source BAT path did not pass')
+        from source_bootstrap import environment as source_environment
+        probe="from pathlib import Path; from updates import install_root; from main_app import profiles_path; import sys; expected=Path(sys.argv[1]).resolve(); assert install_root()==expected; assert profiles_path().is_relative_to(expected); from app_storage import AppStorage; from form_registry import catalog,default_definition; m=AppStorage(install_root()); assert all(m.prepare(default_definition(r)).is_relative_to(expected) for r in catalog()); print('source storage isolated')"
+        subprocess.run([str(source_folder/'.source-venv/Scripts/python.exe'),'-B','-c',probe,str(source_folder/'source-runtime')],cwd=source_folder,env=source_environment(source_folder),check=True,timeout=60,capture_output=True)
+        source_bat=dict(status='passed',setup_bat=True,start_bat=True,clean_extraction=True,venv_isolated=True,storage_isolated_from_exe=True,gui_checked=False,forms=source_result['forms'])
+        audit_zip(archive,source)  # Diagnostic writes must never enter the distributable.
     report=dict(artifact_type='unsigned_windows_prerelease',source_commit=source,version=v['version'],sequence=v['sequence'],
                 archive=archive.name,sha256=sha256(archive.read_bytes()),size_bytes=archive.stat().st_size,
-                signed=False,grhub_update=False,tests=tests,packaged_diagnostic=diagnostic,**embedded,
+                signed=False,grhub_update=False,tests=tests,packaged_diagnostic=diagnostic,source_bat=source_bat,**embedded,
                 unverified=['Windows desktop GUI','physical printer and paper','source-PDF pixel overlay'],
                 validation_host='GitHub-hosted Windows Server; Windows 10/11 desktop UI not exercised')
     (output/'preview-validation.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
@@ -175,7 +192,7 @@ def verify_assets(client,release,source,expected=None,public=False):
     archive=report['archive']
     if checksum_names!={archive,'preview-validation.json'}:raise ValueError('Checksum coverage mismatch')
     if sha256(downloaded[archive])!=report['sha256']:raise ValueError('Release ZIP differs from evidence')
-    audit_zip(io.BytesIO(downloaded[archive]))
+    audit_zip(io.BytesIO(downloaded[archive]),source)
     return dict(status='passed',source_commit=source,tag=release['tag_name'],prerelease=True,public_download_verified=public,
                 release_url=release['html_url'],sha256=report['sha256'],size_bytes=len(downloaded[archive]),asset_sha256={n:sha256(b) for n,b in downloaded.items()})
 
@@ -190,13 +207,13 @@ def publish(output,source,tag,client):
     source_check(source);base=release_context(client,source,tag);output=Path(output)
     report=json.loads((output/'preview-validation.json').read_text(encoding='utf-8'))
     if report['source_commit']!=source or report['artifact_type']!='unsigned_windows_prerelease':raise ValueError('Unaudited source')
-    archive=output/report['archive'];audit_zip(archive)
+    archive=output/report['archive'];audit_zip(archive,source)
     if sha256(archive.read_bytes())!=report['sha256']:raise ValueError('ZIP changed after validation')
     paths=[archive,output/'SHA256SUMS.txt',output/'preview-validation.json'];expected={p.name:p.read_bytes() for p in paths}
     if client.api(base+'/releases/tags/'+tag) is not None or client.api(base+'/git/ref/tags/'+tag) is not None:
         raise ValueError('Release/tag already exists; no replacement is allowed')
     notes=(ROOT/'docs'/('RELEASE_NOTES_'+version()['version']+'.txt')).read_text(encoding='utf-8')
-    notes+='\n\nSource commit: '+source+'\nZIP SHA256: '+report['sha256']+'\nHeadless source tests: '+str(report['tests']['passed'])+' passed, '+str(report['tests']['skipped'])+' skipped.\nPackaged Windows headless diagnostic: passed. Desktop GUI and physical printing: unverified.\n'
+    notes+='\n\nSource commit: '+source+'\nZIP SHA256: '+report['sha256']+'\nHeadless source tests: '+str(report['tests']['passed'])+' passed, '+str(report['tests']['skipped'])+' skipped.\nPackaged Windows EXE and clean-extraction setup_source.bat/start_source.bat headless diagnostics: passed. Desktop GUI and physical printing: unverified.\n'
     release=client.api(base+'/releases','POST',dict(tag_name=tag,target_commitish=source,name=version()['version']+' unsigned Windows preview',body=notes,draft=True,prerelease=True,make_latest='false'))
     upload=release['upload_url'].split('{',1)[0]
     if urllib.parse.urlsplit(upload).hostname!='uploads.github.com':raise ValueError('Unexpected upload host')

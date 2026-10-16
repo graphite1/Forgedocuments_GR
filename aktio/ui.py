@@ -26,12 +26,19 @@ class Application:
         tk.Label(header,text='計量入力  /  運搬予定',bg='#18324B',fg='#BED3E7',font=('Yu Gothic UI',11)).pack(side='right',padx=20)
         output_bar=ttk.Frame(root);output_bar.pack(fill='x',padx=12,pady=7)
         self.paper=tk.StringVar(value='A4中央')
+        from .output_layout import NOTICE_COLORS,DEFAULT_COLOR
+        self.notice_colors={label:key for key,(label,rgb) in NOTICE_COLORS.items()}
+        self.notice_color=tk.StringVar(value=NOTICE_COLORS[DEFAULT_COLOR][0])
         ttk.Label(output_bar,text='出力・印刷用紙：').pack(side='left')
         ttk.Combobox(output_bar,textvariable=self.paper,values=['A4中央','レシート実寸'],state='readonly',width=16).pack(side='left',padx=6)
-        ttk.Label(output_bar,text='1ページ1枚・実寸100%｜乱数予定には必ず「計画」を印字').pack(side='left',padx=8)
+        ttk.Label(output_bar,text='1ページ1枚・実寸100%｜模擬出力の枠外に「出力見本」').pack(side='left',padx=8)
         ttk.Button(output_bar,text='選択1枚をPDF出力',command=self.export_selected).pack(side='left',padx=6)
         ttk.Button(output_bar,text='選択1枚を印刷',command=lambda:self.direct_print(True)).pack(side='left',padx=6)
         ttk.Button(output_bar,text='全件を連番印刷',command=lambda:self.direct_print(False)).pack(side='left',padx=6)
+        color_bar=ttk.Frame(root);color_bar.pack(fill='x',padx=12,pady=3)
+        ttk.Label(color_bar,text='枠外の出力見本の文字色：').pack(side='left')
+        ttk.Combobox(color_bar,textvariable=self.notice_color,values=list(self.notice_colors),state='readonly',width=14).pack(side='left',padx=6)
+        ttk.Label(color_bar,text='読める濃色のみ。囲み枠は描画しません。実寸出力には下余白を追加します。').pack(side='left',padx=8)
         self.tabs=ttk.Notebook(root);self.tabs.pack(fill='both',expand=True,padx=12,pady=12)
         self.actual_tab=ttk.Frame(self.tabs);self.plan_tab=ttk.Frame(self.tabs)
         self.tabs.add(self.plan_tab,text='運搬予定');self.tabs.add(self.actual_tab,text='計量入力')
@@ -43,7 +50,7 @@ class Application:
             try:self.restore_document(saved)
             except Exception:self.store.close();raise
         self._restoring=False
-        for var in [*self.settings.values(),self.paper,self.plan_mode]:
+        for var in [*self.settings.values(),self.paper,self.plan_mode,self.notice_color]:
             var.trace_add('write',self.schedule_save)
         root.protocol('WM_DELETE_WINDOW',self.close)
 
@@ -345,7 +352,8 @@ class Application:
         if not sel:messagebox.showinfo('行を選択','プレビューする行を選択してください');return
         item=items[int(sel[0])];r=item.get('record') if 'record' in item else item
         if r is None:messagebox.showerror('プレビュー','入力不足・不一致のある行はプレビューできません');return
-        image=receipt.render_receipt_image(r);_,layout=receipt.receipt_layout();crop=image.crop(layout['receipt_crop_px'])
+        color=self.notice_color_key()
+        image=receipt.output_image(r,'a4',color);crop=receipt.output_image(r,'receipt',color)
         win=tk.Toplevel(self.root);win.title('レシート プレビュー（実寸・A4中央）')
         bar=ttk.Frame(win);bar.pack(fill='x',padx=10,pady=5)
         label=ttk.Label(win);label.pack(padx=10,pady=10)
@@ -358,6 +366,8 @@ class Application:
     def choose_output(self,prefix):
         base=filedialog.askdirectory(title='出力先の親フォルダ',initialdir=self.directory)
         return Path(base)/(prefix+'_'+datetime.now().strftime('%Y%m%d_%H%M%S_%f')) if base else None
+
+    def notice_color_key(self):return self.notice_colors[self.notice_color.get()]
 
     def paper_kind(self):return 'a4' if self.paper.get()=='A4中央' else 'receipt'
 
@@ -381,12 +391,12 @@ class Application:
 
     def export_selected(self):
         if self.busy:return
-        try:records=self.current_records(True);paper=self.paper_kind()
+        try:records=self.current_records(True);paper=self.paper_kind();color=self.notice_color_key()
         except ValueError as e:messagebox.showerror('1枚出力',str(e));return
         folder=self.choose_output('AKTIO_1枚')
         if not folder:return
         def work():
-            folder.mkdir(parents=True,exist_ok=False);receipt.render_receipt(records[0],folder,paper=paper)
+            folder.mkdir(parents=True,exist_ok=False);receipt.render_receipt(records[0],folder,paper=paper,notice_color=color)
             (folder/'入力内容.json').write_text(json.dumps(records[0],ensure_ascii=False,indent=2),encoding='utf-8')
             return folder
         self.background(work,self.output_done)
@@ -398,7 +408,7 @@ class Application:
             if not records:return
             paper=self.paper_kind();self.busy=True;self.status.set('印刷用紙・プリンターを確認してください。');self.root.update_idletasks()
             from .printing import print_records
-            printed=print_records(records,owner=self.root.winfo_id(),paper=paper)
+            printed=print_records(records,owner=self.root.winfo_id(),paper=paper,notice_color=self.notice_color_key())
             self.status.set(f'{len(records)}枚を連番で印刷ジョブへ送りました。' if printed else '印刷をキャンセルしました。')
         except (ValueError,OSError) as e:messagebox.showerror('印刷',str(e));self.status.set('印刷できませんでした。表示された理由を確認してください。')
         finally:self.busy=False
@@ -414,16 +424,16 @@ class Application:
         try:
             if self.config()!=self.generated_config or self.vehicles!=self.generated_vehicles:raise ValueError('条件が変更されています。計量予定を再生成してください')
         except ValueError as e:messagebox.showerror('予定生成',str(e));return
-        folder=self.choose_output('AKTIO_出力');paper=self.paper_kind()
+        folder=self.choose_output('AKTIO_出力');paper=self.paper_kind();color=self.notice_color_key()
         records=copy.deepcopy(self.plan);config=copy.deepcopy(self.generated_config);vehicles=copy.deepcopy(self.generated_vehicles)
-        if folder:self.background(lambda:export_plan(records,config,vehicles,folder,paper=paper),self.output_done)
+        if folder:self.background(lambda:export_plan(records,config,vehicles,folder,paper=paper,notice_color=color),self.output_done)
 
     def export_actual(self):
         if self.busy:return
         good=copy.deepcopy([i for i in self.records if i['record'] is not None]);bad=[i for i in self.records if i['record'] is None]
         if not good:messagebox.showinfo('出力','出力できる実測記録がありません');return
         if bad and not messagebox.askyesno('未完成の記録',f'{len(bad)}件に不足があります。入力が揃った{len(good)}件だけ出力しますか？'):return
-        folder=self.choose_output('AKTIO_出力');paper=self.paper_kind()
+        folder=self.choose_output('AKTIO_出力');paper=self.paper_kind();color=self.notice_color_key()
         if not folder:return
         def work():
             folder.mkdir(parents=True,exist_ok=False);images=[]
@@ -436,7 +446,7 @@ class Application:
 
     def document(self):
         return {'schema_version':1,'form_id':'aktio_receipt','measured_records':copy.deepcopy(self.records),
-                'source_excel':str(self.source) if self.source else None,'settings':{k:v.get() for k,v in self.settings.items()},'extra_breaks':self.extra_breaks,'vehicles':self.vehicles,
+                'source_excel':str(self.source) if self.source else None,'sample_notice_color':self.notice_color_key(),'settings':{k:v.get() for k,v in self.settings.items()},'extra_breaks':self.extra_breaks,'vehicles':self.vehicles,
                 'paper':self.paper.get(),'measurement_mode':'fixed' if self.plan_mode.get()=='指定時刻・SN（3枚）' else 'count',
                 'records':self.plan,'generated_config':getattr(self,'generated_config',None),'generated_vehicles':getattr(self,'generated_vehicles',None)}
 
@@ -449,6 +459,8 @@ class Application:
 
     def restore_document(self,data):
         data=checked_document(data)
+        from .output_layout import NOTICE_COLORS
+        self.notice_color.set(NOTICE_COLORS[data['sample_notice_color']][0])
         saved_mode=data.get('measurement_mode') or (data.get('generated_config') or data.get('config') or {}).get('measurement_mode','count')
         self.plan_mode.set('指定時刻・SN（3枚）' if saved_mode=='fixed' else '運搬回数で作成')
         if data.get('paper') in ('A4中央','レシート実寸'):self.paper.set(data['paper'])

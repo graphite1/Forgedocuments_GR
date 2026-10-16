@@ -2,16 +2,45 @@
 References: Microsoft Learn PRINTDLGW, DEVMODEW, ResetDCW; Pillow ImageWin.Dib.
 """
 import os,ctypes
-from .receipt import render_receipt_image,receipt_layout
+from .receipt import output_image,receipt_layout
+from .output_layout import output_size_mm
 
 def print_rectangle(width_mm,height_mm,dpi_x,dpi_y,physical_w,physical_h,offset_x,offset_y):
     w=round(width_mm*dpi_x/25.4);h=round(height_mm*dpi_y/25.4)
     x=round((physical_w-w)/2)-offset_x;y=round((physical_h-h)/2)-offset_y
     return x,y,x+w,y+h
 
-def print_records(records,owner=0,paper='a4'):
+
+def print_payloads(records,paper='a4',notice_color='charcoal'):
+    """All raster and printer paths retain the same body and outside notice."""
+    if paper not in ('a4','receipt'):raise ValueError('印刷用紙を確認してください')
+    _,layout=receipt_layout()
+    images=[output_image(r,'receipt',notice_color) for r in records]
+    width,height=layout['receipt_size_mm']
+    job_height=max((output_size_mm(r,layout)[1] for r in records),default=height)
+    return images,layout,(210,297) if paper=='a4' else (width,job_height)
+
+
+def payload_rectangle(image,layout,paper,dpi_x,dpi_y,physical_w,physical_h,offset_x,offset_y):
+    # Anchor the original body exactly as before on A4. Its footer extends below.
+    width,height=layout['receipt_size_mm']
+    if paper=='a4':x,y,_,_=print_rectangle(width,height,dpi_x,dpi_y,physical_w,physical_h,offset_x,offset_y)
+    else:x=round((physical_w-width*dpi_x/25.4)/2)-offset_x;y=-offset_y
+    return x,y,x+round(image.width*dpi_x/layout['dpi']),y+round(image.height*dpi_y/layout['dpi'])
+
+
+def check_printable(image,rect,printable_w,printable_h):
+    ink=image.convert('L').point(lambda p:255 if p<190 else 0).getbbox()
+    if ink:
+        x1=rect[0]+ink[0]/image.width*(rect[2]-rect[0]);x2=rect[0]+ink[2]/image.width*(rect[2]-rect[0])
+        y1=rect[1]+ink[1]/image.height*(rect[3]-rect[1]);y2=rect[1]+ink[3]/image.height*(rect[3]-rect[1])
+        if x1<0 or y1<0 or x2>printable_w or y2>printable_h:
+            raise OSError('文字または出力見本が印刷可能領域から外れます。A4中央または対応用紙を選択してください')
+
+def print_records(records,owner=0,paper='a4',notice_color='charcoal'):
     if os.name!='nt':raise OSError('プリンターへの直接印刷はWindowsで使用してください')
     if not records:raise ValueError('印刷するレシートがありません')
+    images,layout,expected=print_payloads(records,paper,notice_color)
     from ctypes import wintypes as w
     from PIL import ImageWin
     PTR=ctypes.c_void_p;WORD=ctypes.c_uint16;DWORD=ctypes.c_uint32
@@ -48,7 +77,7 @@ def print_records(records,owner=0,paper='a4'):
             code=dlg.CommDlgExtendedError()
             if code:raise OSError(f'印刷画面を開けませんでした（Windowsコード {code}）')
             return False
-        _,layout=receipt_layout();mm_w,mm_h=layout['receipt_size_mm']
+        mm_w,mm_h=expected
         if not pd.devmode:raise OSError('プリンタードライバーから用紙設定を取得できません')
         addr=kernel.GlobalLock(pd.devmode)
         if not addr:raise OSError('プリンター用紙設定を開けません')
@@ -69,27 +98,18 @@ def print_records(records,owner=0,paper='a4'):
         cap=lambda n:gdi.GetDeviceCaps(pd.dc,n)
         dpi_x,dpi_y=cap(88),cap(90);pw,ph=cap(110),cap(111);ox,oy=cap(112),cap(113)
         if min(dpi_x,dpi_y,pw,ph)<=0:raise OSError('プリンターの解像度または用紙寸法を取得できません')
-        expected=(210,297) if paper=='a4' else (mm_w,mm_h)
         actual=(pw*25.4/dpi_x,ph*25.4/dpi_y)
         tolerance=3 if paper=='a4' else 2
         if any(abs(a-b)>tolerance for a,b in zip(actual,expected)):
             raise OSError(f'指定した用紙サイズを適用できませんでした。プリンター側の用紙は約{actual[0]:.1f}×{actual[1]:.1f}mmです。A4中央または対応する用紙を選択してください')
-        rect=print_rectangle(mm_w,mm_h,dpi_x,dpi_y,pw,ph,ox,oy)
-        # Permit only the empty margin to cross the printer's nonprintable edge.
-        for record in records:
-            crop=render_receipt_image(record).crop(layout['receipt_crop_px'])
-            ink=crop.convert('L').point(lambda p:255 if p<190 else 0).getbbox()
-            if ink:
-                x1=rect[0]+ink[0]/crop.width*(rect[2]-rect[0]);x2=rect[0]+ink[2]/crop.width*(rect[2]-rect[0])
-                y1=rect[1]+ink[1]/crop.height*(rect[3]-rect[1]);y2=rect[1]+ink[3]/crop.height*(rect[3]-rect[1])
-                if x1<0 or y1<0 or x2>cap(8) or y2>cap(10):raise OSError('文字がプリンターの印刷可能領域から外れます。A4中央または余白の小さい対応用紙を選んでください')
+        rectangles=[payload_rectangle(image,layout,paper,dpi_x,dpi_y,pw,ph,ox,oy) for image in images]
+        for image,rect in zip(images,rectangles):check_printable(image,rect,cap(8),cap(10))
         info=DOCINFO();info.size=ctypes.sizeof(info);info.name=f'AKTIO_{len(records)}枚'
         if gdi.StartDocW(pd.dc,ctypes.byref(info))<=0:raise OSError('印刷ジョブを開始できませんでした')
         started=True
-        for record in records:
+        for image,rect in zip(images,rectangles):
             if gdi.StartPage(pd.dc)<=0:raise OSError('印刷ページを開始できませんでした')
-            crop=render_receipt_image(record).crop(layout['receipt_crop_px'])
-            ImageWin.Dib(crop).draw(ImageWin.HDC(pd.dc),rect)
+            ImageWin.Dib(image).draw(ImageWin.HDC(pd.dc),rect)
             if gdi.EndPage(pd.dc)<=0:raise OSError('印刷ページを完了できませんでした')
         if gdi.EndDoc(pd.dc)<=0:raise OSError('印刷ジョブを完了できませんでした')
         started=False;return True

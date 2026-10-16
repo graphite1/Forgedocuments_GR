@@ -15,6 +15,8 @@ def checked_document(data):
     if data.get('schema_version',1)!=1:raise ValueError('未対応のAKTIO保存バージョンです')
     if not any(k in data for k in ('settings','config')):raise ValueError('AKTIOの設定がありません')
     result=copy.deepcopy(data)
+    from .output_layout import checked_color,DEFAULT_COLOR
+    result['sample_notice_color']=checked_color(result.get('sample_notice_color',DEFAULT_COLOR))
     if not isinstance(result.get('settings',{}),dict):raise ValueError('設定の形式が不正です')
     if result.get('measurement_mode','count') not in ('fixed','count'):raise ValueError('作成方法が不正です')
     vehicles=result.get('vehicles',[])
