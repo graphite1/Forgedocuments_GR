@@ -66,6 +66,17 @@ class PreviewReleaseChecks(unittest.TestCase):
                 self.assertEqual(run.call_args.kwargs['cwd'],root)
         with patch.object(launcher.sys,'version_info',(3,13)),self.assertRaisesRegex(RuntimeError,'3.14'):launcher.check_python()
 
+    def test_windows_bat_validation_preserves_cmd_quotes_and_reports_failures(self):
+        import subprocess
+        command='call start_source.bat --diagnostic-output "C:\\test folder\\diagnostic"'
+        with patch.dict('os.environ',{'COMSPEC':'C:\\Windows\\cmd.exe'}),patch('tools.preview_release.subprocess.run') as run:
+            preview.run_source_bat(command,Path('synthetic folder'),{},180)
+            self.assertEqual(run.call_args.args[0],'"C:\\Windows\\cmd.exe" /d /s /c "'+command+'"')
+            self.assertNotIn('shell',run.call_args.kwargs)
+        failure=subprocess.CalledProcessError(1,'synthetic',output=b'Failed setup',stderr=b': synthetic reason')
+        with patch('tools.preview_release.subprocess.run',side_effect=failure):
+            with self.assertRaisesRegex(RuntimeError,'Failed setup: synthetic reason'):preview.run_source_bat(command,Path('synthetic folder'),{},180)
+
     def test_guard_rejects_existing_tag_and_private_repository(self):
         class Client:
             def api(self,path):
